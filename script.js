@@ -43,6 +43,7 @@ const fullPlan = basePlan.flatMap((item) => {
 
     return parts.map((partText, partIndex) => ({
         ...item,
+        type: partText.includes('En') ? 'eng' : item.type,
         sourceId: item.baseId,
         partIndex,
         partsCount: parts.length,
@@ -219,7 +220,14 @@ function orderedTasks() {
 }
 
 function getTagLabel(type) {
-    const labels = { chem: 'كيمياء', phys: 'فيزياء', bio: 'أحياء', rev: 'مراجعة', sol: 'حل' };
+    const labels = { 
+    chem: 'كيمياء', 
+    phys: 'فيزياء', 
+    bio: 'أحياء', 
+    rev: 'مراجعة', 
+    sol: 'حل',
+    eng: 'إنجليزي'  
+};
     return labels[type] || 'مهمة';
 }
 
