@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>جدولي</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- العنوان الرئيسي للمشروع -->
+<div class="main-title">
+    <h1><span class="title-text">الدولي اللي مش عايز يستر</span> <span>💀</span></h1>
+</div>
+
+<!-- رسالة تحفيزية تتغير كل مرة -->
+<div class="motivation-banner" id="motivationBanner"></div>
+<!-- شريط التقدم المثبت أعلى الصفحة -->
+<div class="sticky-header">
+    <div class="progress-section">
+        <div class="progress-info">
+            <span>الي خلصتو</span>
+            <span id="percent-val" style="color: var(--success);">0%</span>
+        </div>
+        <div class="bar-bg"><div id="bar-fill"></div></div>
+    </div>
+</div>
+
+<!-- الحاوية الأساسية التي تجمع كل البطاقات والأقسام -->
+<div class="container">
+    <div class="dashboard-grid">
+        <div class="stat-card"><span id="streakCount">0</span><small>أيام الالتزام 😒</small></div>
+        <div class="stat-card"><span id="completedCount">0</span><small>المهام الي خلصت 👌</small></div>
+        <div class="stat-card"><span id="levelCount">1</span><small> مستواك 👀</small></div>
+        <div class="stat-card"><span id="subjectCount">-</span><small>اكتر حاجه اتعملت ✌</small></div>
+    </div>
+
+    <div class="today-focus">
+        <h3> المفروض بيجيب المهمه الجايه بس فيه مشكله 😐</h3>
+        <div id="todayTask">بيحدد لسه...</div>
+    </div>
+
+    <div class="achievements">
+        <h3>دي بقا الالقاب 🔰</h3>
+        <div id="achievementsList"></div>
+    </div>
+
+    <div class="calendar-wrap">
+        <h3> دا التقويم الشهري 🎎 =</h3>
+        <div class="calendar-days" id="calendarDays"></div>
+    </div>
+
+    <div class="theme-switcher">
+        <div class="section-head">
+            <h3>قولت احط ثيمات جديده 😀</h3>
+            <button class="ghost-btn" id="resetBtn" type="button">اعاده ضبط</button>
+        </div>
+        <div class="theme-buttons">
+            <button type="button" data-theme="default" onclick="setTheme('default')">اساسي</button>
+            <button type="button" data-theme="blue" onclick="setTheme('blue')">ازرق</button>
+            <button type="button" data-theme="gold" onclick="setTheme('gold')">ذهبي</button>
+            <button type="button" data-theme="red" onclick="setTheme('red')">احمر</button>
+            <button type="button" data-theme="violet" onclick="setTheme('violet')">بنفسجي</button>
+            <!-- <button type="button" data-theme="forest" onclick="setTheme('forest')">Forest</button> -->
+        </div>
+    </div>
+
+    <div class="tasks-toolbar">
+        <h3> فلتر </h3>
+        <div class="filter-buttons" id="filterButtons">
+            <button type="button" data-filter="all" class="active">الكل</button>
+            <button type="button" data-filter="done">الخلصان</button>
+            <button type="button" data-filter="pending">المتبقي</button>
+        </div>
+    </div>
+
+    <div class="tasks-grid" id="taskList"></div>
+
+    <div class="countdown-wrap">
+        <h2 class="countdown-title">الباقي ع الحرب </h2>
+        <div id="countdownGrid"></div>
+        <div class="hint-box">برضو لو حددت مهمه مش هتتشال تاني لازم تعمل مسح بيانات للموقع + اظن مش محتاج اكتب  الحقوق محفوظه 😶</div>
+    </div>
+</div>
+
+<!-- نافذة تأكيد إنجاز المهمة -->
+<div class="confirm-overlay" id="confirmOverlay" aria-hidden="true">
+    <div class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+        <div class="confirm-head"><h3 class="confirm-title" id="confirmTitle">تاكيد المهمه </h3></div>
+        <div class="confirm-body" id="confirmBody">
+            <div>متأكد خلصت المهمه ولا ايه ؟</div>
+            <div class="confirm-task" id="confirmTaskText"></div>
+        </div>
+        <div class="confirm-actions">
+            <button class="confirm-btn cancel" id="confirmCancel" type="button">كنسل</button>
+            <button class="confirm-btn ok" id="confirmOk" type="button">أكد</button>
+        </div>
+    </div>
+</div>
+
+<!-- تحميل بيانات الخطة أولًا ثم منطق الصفحة -->
+<script src="data.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
