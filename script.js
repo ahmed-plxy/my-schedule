@@ -43,7 +43,8 @@ const fullPlan = basePlan.flatMap((item) => {
 
     return parts.map((partText, partIndex) => ({
         ...item,
-        type: partText.trim().toLowerCase().startsWith('en') ? 'eng' : item.type,
+        type: partIndex === 1 ? 'eng' : item.type,
+        sourceId: item.baseId,
         sourceId: item.baseId,
         partIndex,
         partsCount: parts.length,
