@@ -1,6 +1,6 @@
 {
-  "name": "Study Tracker Pro",
-  "short_name": "Tracker",
+  "name": "جدولي",
+  "short_name": "جدولي",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#0b0f14",
