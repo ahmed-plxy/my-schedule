@@ -973,7 +973,7 @@ function refreshQuickNextButton() {
     if (!quickNextButton) {
         quickNextButton = document.createElement('button');
         quickNextButton.type = 'button';
-        quickNextButton.textContent = 'مش فاكر فكرتو';
+        quickNextButton.textContent = 'المهمة الحالية';
         quickNextButton.className = 'ghost-btn';
         quickNextButton.style.cssText = 'position:fixed;bottom:20px;left:20px;z-index:1500;padding:12px 16px;border-radius:14px;background:linear-gradient(90deg,var(--accent),var(--success));color:#000;font-weight:900;cursor:pointer;box-shadow:0 10px 24px rgba(0,0,0,.3);';
         document.body.appendChild(quickNextButton);
