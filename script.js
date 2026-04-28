@@ -1,6 +1,9 @@
 /* =========================
 إعدادات أساسية للمشروع
    ========================= */
+window.onerror = function (msg, url, line, col, error) {
+    alert("ERROR: " + msg + " at line " + line);
+};
 if ('serviceWorker' in navigator) {
   //navigator.serviceWorker.register('sw.js');
 }
