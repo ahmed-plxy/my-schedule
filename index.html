@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>جدولي الدراسي</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-theme="midnight">
+  <div class="bg-orb orb-1"></div>
+  <div class="bg-orb orb-2"></div>
+
+  <main class="app-shell">
+    <header class="hero section-card">
+      <div class="hero-copy">
+        <div class="hero-kicker">Study Planner • Weeks • Focus</div>
+        <h1 id="heroTitle">جدولي الدراسي</h1>
+        <p id="heroSubtitle" class="hero-subtitle">تقسيم أسبوعي منظم + ثيمات تتغير معها ألوان المواد + Focus Mode وملخصات ذكية.</p>
+        <div class="hero-meta">
+          <span id="currentStatus" class="hero-chip">جارٍ التحميل...</span>
+          <span id="currentWeekTag" class="hero-chip soft">الأسبوع الحالي</span>
+          <span id="currentDayTag" class="hero-chip soft">اليوم الحالي</span>
+        </div>
+      </div>
+
+      <div class="hero-side">
+        <div class="reminder-banner" id="reminderBanner">...</div>
+        <div class="hero-progress" id="heroProgress">
+          <div class="progress-head">
+            <span>التقدم العام</span>
+            <span id="progressLabel">0%</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" id="bar-fill"></div>
+          </div>
+          <div class="progress-foot">
+            <span id="weekCount">0 أسبوع</span>
+            <span id="percent-val">0%</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <section class="stats-grid">
+      <article class="stat-card">
+        <div class="stat-value" id="streakCount">0</div>
+        <div class="stat-label">🔥 Streak</div>
+      </article>
+      <article class="stat-card">
+        <div class="stat-value" id="completedCount">0</div>
+        <div class="stat-label">✅ منجز</div>
+      </article>
+      <article class="stat-card">
+        <div class="stat-value" id="remainingCount">0</div>
+        <div class="stat-label">🧩 متبقي</div>
+      </article>
+      <article class="stat-card">
+        <div class="stat-value" id="levelCount">Lv 1</div>
+        <div class="stat-label">🏆 Level</div>
+      </article>
+      <article class="stat-card wide">
+        <div class="stat-value" id="subjectCount">—</div>
+        <div class="stat-label">📘 الأكثر دراسة</div>
+      </article>
+    </section>
+
+    <section class="control-panel section-card">
+      <div class="panel-row search-row">
+        <div class="search-box">
+          <input id="searchInput" type="search" placeholder="ابحث عن يوم أو مهمة أو مادة...">
+          <button id="clearSearchBtn" class="icon-btn soft" type="button" aria-label="مسح البحث">×</button>
+        </div>
+
+        <div class="filter-group" role="tablist" aria-label="تصفية المهام">
+          <button type="button" class="filter-pill active" data-filter="all">الكل</button>
+          <button type="button" class="filter-pill" data-filter="pending">المتبقي</button>
+          <button type="button" class="filter-pill" data-filter="done">المنجز</button>
+        </div>
+      </div>
+
+      <div class="panel-row actions-row">
+        <div class="theme-group">
+          <div class="panel-title">الثيمات</div>
+          <div class="theme-grid" id="themeButtons"></div>
+        </div>
+
+        <div class="utility-group">
+          <div class="panel-title">أدوات سريعة</div>
+          <div class="utility-buttons">
+            <button id="openFocusBtn" class="mini-btn accent" type="button">Focus Mode</button>
+            <button id="expandAllBtn" class="mini-btn" type="button">فتح الكل</button>
+            <button id="collapseAllBtn" class="mini-btn" type="button">إغلاق الكل</button>
+            <button id="exportBtn" class="mini-btn" type="button">تصدير</button>
+            <button id="importBtn" class="mini-btn" type="button">استيراد</button>
+            <button id="resetBtn" class="mini-btn danger" type="button">تصفير</button>
+          </div>
+        </div>
+      </div>
+
+      <input id="importInput" type="file" accept="application/json" hidden>
+    </section>
+
+    <section class="section-card spotlight">
+      <div class="section-head">
+        <div>
+          <div class="section-title">🎯 المهمة التالية</div>
+          <div class="section-subtitle" id="scheduleHint">جارٍ تحديد أقرب مهمة...</div>
+        </div>
+      </div>
+      <div id="nextTaskBox" class="next-task-wrap"></div>
+    </section>
+
+    <section class="section-card">
+      <div class="section-head">
+        <div>
+          <div class="section-title">🗺️ خريطة الجدول</div>
+          <div class="section-subtitle">اضغط على أي يوم للوصول إليه مباشرة</div>
+        </div>
+      </div>
+      <div id="weekGrid" class="week-grid"></div>
+    </section>
+
+    <section id="weeksContainer" class="weeks-stack"></section>
+
+    <section class="section-card">
+      <div class="section-head">
+        <div>
+          <div class="section-title">⏳ العدّاد للامتحانات</div>
+          <div class="section-subtitle">متابعة مباشرة للتوقيت المتبقي</div>
+        </div>
+      </div>
+      <div id="examGrid" class="exam-grid"></div>
+    </section>
+  </main>
+
+  <div id="confirmModal" class="modal confirm-modal" aria-hidden="true">
+    <div class="modal-panel">
+      <div class="modal-head">
+        <h3>تأكيد المهمة</h3>
+      </div>
+      <div class="modal-body">
+        <p>هل أنت متأكد إنك خلصت المهمة دي نهائيًا؟</p>
+        <div id="confirmTaskText" class="modal-task"></div>
+      </div>
+      <div class="modal-actions">
+        <button id="confirmCancel" class="mini-btn" type="button">إلغاء</button>
+        <button id="confirmOk" class="mini-btn accent" type="button">تأكيد</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="focusModal" class="modal focus-modal" aria-hidden="true">
+    <div class="modal-panel focus-panel">
+      <div class="focus-head">
+        <div>
+          <div class="section-title">Focus Mode</div>
+          <div id="focusMeta" class="section-subtitle">...</div>
+        </div>
+        <button id="focusClose" class="icon-btn soft" type="button" aria-label="إغلاق">×</button>
+      </div>
+
+      <div id="focusTitle" class="focus-title">مهمة</div>
+      <div id="focusTimer" class="focus-timer">25:00</div>
+
+      <div class="focus-actions">
+        <button id="focusStartPause" class="mini-btn accent" type="button">ابدأ</button>
+        <button id="focusReset" class="mini-btn" type="button">إعادة الضبط</button>
+        <button id="focusDoneNext" class="mini-btn" type="button">تم + التالي</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toastHost" class="toast-host" aria-live="polite" aria-atomic="true"></div>
+
+  <script src="data.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
