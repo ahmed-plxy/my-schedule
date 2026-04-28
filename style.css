@@ -503,6 +503,12 @@ input[type="checkbox"]:checked::after {
 .tag-bio { background: var(--bio-color); box-shadow: 0 0 10px rgba(16,185,129,0.3); color: #000; }
 .tag-rev { background: var(--rev-color); box-shadow: 0 0 10px rgba(139,92,246,0.3); }
 .tag-sol { background: var(--sol-color); box-shadow: 0 0 10px rgba(239,68,68,0.3); }
+.tag-eng {
+    background: linear-gradient(135deg, #ff4d4d, #ff00aa);
+    box-shadow: 0 0 10px rgba(255, 0, 170, 0.4),
+                0 0 20px rgba(255, 77, 77, 0.3);
+    color: #fff;
+}
 
 
 /* =========================
