@@ -196,6 +196,13 @@ function loadState() {
         return defaultState;
     }
 }
+function saveState() {
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch (e) {
+        console.error('Error saving state:', e);
+    }
+}
 /* أدوات معرفة حالة المهمة وترتيبها */
 function isTaskDone(taskId) {
     return Boolean(state.done[taskId]?.completed);
