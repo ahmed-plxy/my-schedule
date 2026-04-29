@@ -298,7 +298,7 @@ function setDone(taskId) {
 
     // 🟢 حفظ مكانك + التاسك نفسه
     const currentOpenWeek = document.querySelector('.week-section[open]');
-    const currentOpenDay = document.querySelector('.day-accordion[open]');
+    const openDays = [...document.querySelectorAll('.day-accordion[open]')];
     const scrollY = window.scrollY;
 
     // تسجيل إنجاز المهمة
