@@ -47,7 +47,6 @@ const fullPlan = basePlan.flatMap((item) => {
         type: partIndex === 1 ? 'eng' : item.type,
         /*type: item.type,*/
         sourceId: item.baseId,
-        sourceId: item.baseId,
         partIndex,
         partsCount: parts.length,
         id: parts.length === 1 ? item.baseId : `${item.baseId}-${partIndex + 1}`,
@@ -293,79 +292,63 @@ function closeConfirm(resetCheckbox = false) {
 }
 
 /* تسجيل إنجاز المهمة في الحالة المحفوظة */
-function setDone(taskId) {
+ function setDone(taskId) {
     if (isTaskDone(taskId)) return false;
 
-    // 🟢 حفظ مكانك + التاسك نفسه
+    // نحفظ موضع الصفحة والعناصر المفتوحة قبل إعادة الرسم
     const currentOpenWeek = document.querySelector('.week-section[open]');
     const openDays = [...document.querySelectorAll('.day-accordion[open]')];
-    const scrollY = window.scrollY;
+    const anchorBefore = document.querySelector(`.subtask-card[data-id="${taskId}"]`);
+    const anchorTopBefore = anchorBefore ? anchorBefore.getBoundingClientRect().top : null;
+    const scrollYBefore = window.scrollY;
 
     // تسجيل إنجاز المهمة
     state.done[taskId] = {
-        completed: true,
-        completedDate: toDateKey(new Date()),
-        completedAt: new Date().toISOString(),
+        done: true,
+        completedAt: Date.now()
     };
 
     saveState();
     playSuccessAnimation();
-    // إعادة رسم
     renderAll(true);
 
-    // 🟢 رجوع ذكي لنفس التاسك
-    setTimeout(() => {
-
-        // رجّع الأسبوع
+    requestAnimationFrame(() => {
+        // رجّع الأسبوع المفتوح
         if (currentOpenWeek) {
             const index = currentOpenWeek.dataset.weekIndex;
             const newWeek = document.querySelector(`.week-section[data-week-index="${index}"]`);
             if (newWeek) newWeek.open = true;
         }
 
-        // رجّع اليوم
+        // رجّع الأيام المفتوحة
         openDays.forEach(day => {
-    const key = day.dataset.dayKey;
-    const newDay = document.querySelector(`.day-accordion[data-day-key="${key}"]`);
-    if (newDay) newDay.open = true;
-      });
+            const key = day.dataset.dayKey;
+            const newDay = document.querySelector(`.day-accordion[data-day-key="${key}"]`);
+            if (newDay) newDay.open = true;
+        });
 
-        // 🎯 ركّز على نفس التاسك
-        const taskEl = document.querySelector(`.subtask-card[data-id="${taskId}"]`);
+        requestAnimationFrame(() => {
+            const taskEl = document.querySelector(`.subtask-card[data-id="${taskId}"]`);
 
-        if (taskEl) {
-            taskEl.scrollIntoView({
-                behavior: "smooth",
-                block: "center"
-            });
+            if (taskEl) {
+                // نثبت نفس مكان البطاقة على الشاشة بدل ما تنط لنص الصفحة
+                if (anchorTopBefore !== null) {
+                    const nextTop = taskEl.getBoundingClientRect().top;
+                    window.scrollBy({ top: nextTop - anchorTopBefore, behavior: 'auto' });
+                } else {
+                    window.scrollTo({ top: scrollYBefore, behavior: 'auto' });
+                }
 
-            // ✨ Highlight effect
-            taskEl.style.transition = "0.3s";
-            taskEl.style.boxShadow = "0 0 20px var(--accent)";
-            taskEl.style.transform = "scale(1.02)";
-
-            setTimeout(() => {
-                taskEl.style.boxShadow = "";
-                taskEl.style.transform = "";
-            }, 800);
-
-        } else {
-            // fallback لو ملقهوش
-            window.scrollTo(0, scrollY);
-        }
-
-    }, 50);
+                taskEl.classList.add('task-flash');
+                setTimeout(() => taskEl.classList.remove('task-flash'), 900);
+            } else {
+                window.scrollTo({ top: scrollYBefore, behavior: 'auto' });
+            }
+        });
+    });
 
     return true;
-}
-
-function getDoneDateKeys() {
-    const keys = new Set();
-    fullPlan.forEach(task => {
-        if (isTaskDone(task.id)) keys.add(getTaskCompletionDateKey(task.id));
-    });
-    return [...keys].filter(Boolean).sort();
-}
+ }
 
 /* حساب عدد الأيام المتتالية التي تم فيها إنجاز مهام */
 function calculateStreak() {
@@ -1041,14 +1024,14 @@ function refreshQuickNextButton() {
 
         const target = openTaskLocation(nextTask.id);
         if (target) {
-            target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            target.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             return;
         }
 
         applyFilter('all');
         setTimeout(() => {
             const fallback = openTaskLocation(nextTask.id);
-            if (fallback) fallback.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            if (fallback) fallback.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }, 0);
     };
 }
@@ -1065,20 +1048,20 @@ function renderTasks() {
     });
 }
 function playSuccessAnimation() {
-    const el = document.getElementById("successAnim");
-    if (!el) return; 
-   
-    el.classList.remove("show");
-     void el.offsetWidth;
-   
-    el.classList.add("show");
+    const el = document.getElementById('successAnim');
+    if (!el) return;
 
-    // vibration (لو مدعوم)
+    el.classList.remove('show');
+    void el.offsetWidth;
+    el.classList.add('show');
+    el.setAttribute('aria-hidden', 'false');
+
     if (navigator.vibrate) {
-        navigator.vibrate(50);
+        navigator.vibrate(35);
     }
 
     setTimeout(() => {
-        el.classList.remove("show");
-    }, 600);
+        el.classList.remove('show');
+        el.setAttribute('aria-hidden', 'true');
+    }, 1100);
 }
