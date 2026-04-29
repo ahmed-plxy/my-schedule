@@ -814,43 +814,90 @@ input[type="checkbox"]:checked::after {
     font-weight: 650;
     line-height: 1.8;
 }
+.task-flash {
+    animation: taskFlash 0.9s ease-out;
+}
+
+@keyframes taskFlash {
+    0% {
+        box-shadow: 0 0 0 0 rgba(0, 242, 254, 0.0);
+        transform: translateY(0) scale(1);
+    }
+    35% {
+        box-shadow: 0 0 0 1px rgba(0, 242, 254, 0.24), 0 0 24px rgba(0, 242, 254, 0.12);
+        transform: translateY(-1px) scale(1.01);
+    }
+    100% {
+        box-shadow: none;
+        transform: translateY(0) scale(1);
+    }
+}
 .success-anim {
     position: fixed;
     inset: 0;
     display: flex;
-    align-items: center;
+    align-items: flex-end;
     justify-content: center;
-    background: rgba(0,0,0,0.4);
-    backdrop-filter: blur(6px);
+    padding: 0 16px 28px;
+    background: rgba(0,0,0,0.18);
+    backdrop-filter: blur(3px);
     z-index: 9999;
     opacity: 0;
     pointer-events: none;
-    transition: 0.3s;
+    transition: opacity 0.25s ease;
 }
 
 .success-anim.show {
     opacity: 1;
-   pointer-events: auto;
+}
+
+.success-card {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 18px;
+    background: linear-gradient(180deg, rgba(18,18,18,.96), rgba(10,10,10,.96));
+    border: 1px solid rgba(0,255,135,.18);
+    box-shadow: 0 16px 38px rgba(0,0,0,.45);
+    transform: translateY(18px) scale(.96);
+    opacity: 0;
+}
+
+.success-anim.show .success-card {
+    animation: successCardIn 0.52s cubic-bezier(.2,.9,.2,1) forwards;
 }
 
 .checkmark {
-    font-size: 80px;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: rgba(0,255,135,.12);
     color: var(--success);
-    transform: scale(0.5);
-    opacity: 0;
-    animation: popCheck 0.5s ease forwards;
+    font-size: 24px;
+    font-weight: 900;
+    box-shadow: 0 0 0 6px rgba(0,255,135,.06);
 }
 
-@keyframes popCheck {
+.success-text {
+    font-size: .95rem;
+    font-weight: 900;
+    color: #fff;
+}
+
+@keyframes successCardIn {
     0% {
-        transform: scale(0.3);
+        transform: translateY(18px) scale(.96);
         opacity: 0;
     }
     60% {
-        transform: scale(1.2);
+        transform: translateY(0) scale(1.02);
         opacity: 1;
     }
     100% {
-        transform: scale(1);
+        transform: translateY(0) scale(1);
+        opacity: 1;
     }
 }
