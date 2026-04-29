@@ -734,7 +734,7 @@ function renderCountdown() {
         card.className = `exam-card ${exam.id}`;
         card.innerHTML = `
             <div class="exam-meta">
-                <div class="exam-line">الباقي علي الحرب<span class="exam-subject ${exam.id}">${escapeHTML(exam.name)}</span></div>
+                <div class="exam-line"> الباقي علي الحرب <span class="exam-subject ${exam.id}">${escapeHTML(exam.name)}</span></div>
                 <div class="exam-date">${escapeHTML(exam.dateText)}</div>
             </div>
             <div class="countdown-box">
