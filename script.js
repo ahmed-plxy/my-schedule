@@ -296,7 +296,7 @@ function closeConfirm(resetCheckbox = false) {
 function setDone(taskId) {
     if (isTaskDone(taskId)) return false;
 
-    // 🟢 حفظ مكانك الحالي (الأسبوع + اليوم + السكرول)
+    // 🟢 حفظ مكانك + التاسك نفسه
     const currentOpenWeek = document.querySelector('.week-section[open]');
     const currentOpenDay = document.querySelector('.day-accordion[open]');
     const scrollY = window.scrollY;
@@ -309,26 +309,52 @@ function setDone(taskId) {
     };
 
     saveState();
-
-    // إعادة رسم الصفحة
+    playSuccessAnimation();
+    // إعادة رسم
     renderAll(true);
 
-    // 🟢 ترجيعك لنفس المكان بعد التحديث
+    // 🟢 رجوع ذكي لنفس التاسك
     setTimeout(() => {
+
+        // رجّع الأسبوع
         if (currentOpenWeek) {
             const index = currentOpenWeek.dataset.weekIndex;
             const newWeek = document.querySelector(`.week-section[data-week-index="${index}"]`);
             if (newWeek) newWeek.open = true;
         }
 
+        // رجّع اليوم
         if (currentOpenDay) {
             const key = currentOpenDay.dataset.dayKey;
             const newDay = document.querySelector(`.day-accordion[data-day-key="${key}"]`);
             if (newDay) newDay.open = true;
         }
 
-        window.scrollTo(0, scrollY);
-    }, 0);
+        // 🎯 ركّز على نفس التاسك
+        const taskEl = document.querySelector(`.subtask-card[data-id="${taskId}"]`);
+
+        if (taskEl) {
+            taskEl.scrollIntoView({
+                behavior: "smooth",
+                block: "center"
+            });
+
+            // ✨ Highlight effect
+            taskEl.style.transition = "0.3s";
+            taskEl.style.boxShadow = "0 0 20px var(--accent)";
+            taskEl.style.transform = "scale(1.02)";
+
+            setTimeout(() => {
+                taskEl.style.boxShadow = "";
+                taskEl.style.transform = "";
+            }, 800);
+
+        } else {
+            // fallback لو ملقهوش
+            window.scrollTo(0, scrollY);
+        }
+
+    }, 50);
 
     return true;
 }
@@ -1037,4 +1063,19 @@ function renderTasks() {
         if (!section) return;
         listContainer.appendChild(section);
     });
+}
+function playSuccessAnimation() {
+    const el = document.getElementById("successAnim");
+    if (!el) return;
+
+    el.classList.add("show");
+
+    // vibration (لو مدعوم)
+    if (navigator.vibrate) {
+        navigator.vibrate(50);
+    }
+
+    setTimeout(() => {
+        el.classList.remove("show");
+    }, 600);
 }
