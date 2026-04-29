@@ -72,6 +72,9 @@ const confirmOverlay = document.getElementById('confirmOverlay');
 const confirmTaskText = document.getElementById('confirmTaskText');
 const confirmOk = document.getElementById('confirmOk');
 const confirmCancel = document.getElementById('confirmCancel');
+const stickyHeader = document.querySelector('.sticky-header');
+const progressSection = document.querySelector('.progress-section');
+const progressBarBg = document.querySelector('.bar-bg');
 const motivationBanner = document.getElementById('motivationBanner');
 const todayTaskBox = document.getElementById('todayTask');
 const filterButtons = document.getElementById('filterButtons');
@@ -86,6 +89,8 @@ let currentFilter = 'all';
 let lastDateKey = toDateKey(new Date());
 let lastMonthKey = getMonthKey(new Date());
 let quickNextButton = null;
+let confirmAnimationLock = false;
+let confirmBeamEl = null;
 
 /* رسائل تحفيزية تظهر أعلى الصفحة */
 const motivationQuotes = [
@@ -266,6 +271,113 @@ function moveTask(taskId, direction) {
     renderAll(true);
 }
 
+/* عناصر مؤقتة لتحريك ضربة المهمة نحو شريط التقدم */
+function createTaskBeam(sourceRect, targetRect) {
+    const beam = document.createElement('div');
+    beam.className = 'task-beam';
+
+    const startX = sourceRect.left + sourceRect.width / 2;
+    const startY = sourceRect.top + sourceRect.height / 2;
+    const endX = targetRect.left + targetRect.width / 2;
+    const endY = targetRect.top + targetRect.height / 2;
+    const liftY = Math.min(startY - 110, startY - Math.max(90, sourceRect.height * 0.9));
+    const midX = startX + (endX - startX) * 0.74;
+    const midY = liftY + (endY - liftY) * 0.38;
+
+    beam.style.left = `${startX}px`;
+    beam.style.top = `${startY}px`;
+    beam.style.setProperty('--beam-end-x', `${endX - startX}px`);
+    beam.style.setProperty('--beam-end-y', `${endY - startY}px`);
+    beam.style.setProperty('--beam-mid-x', `${midX - startX}px`);
+    beam.style.setProperty('--beam-mid-y', `${midY - startY}px`);
+    beam.style.setProperty('--beam-lift-y', `${liftY - startY}px`);
+
+    document.body.appendChild(beam);
+    confirmBeamEl = beam;
+    return beam;
+}
+
+function resetConfirmMotionState({ keepFocus = false } = {}) {
+    if (confirmBeamEl) {
+        confirmBeamEl.remove();
+        confirmBeamEl = null;
+    }
+    confirmOverlay.classList.remove('launching');
+    const modal = confirmOverlay.querySelector('.confirm-modal');
+    modal?.classList.remove('launching');
+    if (!keepFocus) stickyHeader?.classList.remove('confirm-focus');
+    progressBarBg?.classList.remove('impact');
+    fill?.classList.remove('impact-fill');
+}
+
+function launchConfirmCompletion(taskId, checkboxEl) {
+    if (confirmAnimationLock) return;
+    confirmAnimationLock = true;
+
+    const modal = confirmOverlay.querySelector('.confirm-modal');
+    const barTarget = progressBarBg || fill?.parentElement;
+    const sourceRect = modal?.getBoundingClientRect();
+    const targetRect = barTarget?.getBoundingClientRect();
+
+    if (checkboxEl) checkboxEl.checked = true;
+
+    if (!modal || !barTarget || !sourceRect || !targetRect) {
+        closeConfirm(false, true);
+        try {
+            setDone(taskId);
+        } finally {
+            confirmAnimationLock = false;
+        }
+        return;
+    }
+
+    confirmOverlay.classList.add('launching');
+    modal.classList.add('launching');
+    stickyHeader?.classList.add('confirm-focus');
+
+    const beam = createTaskBeam(sourceRect, targetRect);
+    const beamDistance = Math.hypot(targetRect.left - sourceRect.left, targetRect.top - sourceRect.top);
+    const beamTravelMs = Math.max(620, Math.min(1020, Math.round(beamDistance * 0.9)));
+    const closeDelayMs = Math.max(200, Math.round(beamTravelMs * 0.26));
+    const impactDelayMs = Math.max(closeDelayMs + 90, Math.round(beamTravelMs * 0.78));
+    const cleanupDelayMs = impactDelayMs + 460;
+
+    beam.style.setProperty('--beam-duration', `${beamTravelMs}ms`);
+
+    let settled = false;
+    const finish = () => {
+        if (settled) return;
+        settled = true;
+        resetConfirmMotionState();
+        confirmAnimationLock = false;
+    };
+
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            beam.classList.add('launch');
+
+            // مرحلة الاستعداد: الكرت يتكثف ويُسحب بصريًا قبل الإطلاق.
+            setTimeout(() => {
+                closeConfirm(false, true);
+            }, closeDelayMs);
+
+            // لحظة الاصطدام: تسجيل الإنجاز ثم تفجير وميض البار.
+            setTimeout(() => {
+                barTarget.classList.add('impact');
+                fill?.classList.add('impact-fill');
+                try {
+                    setDone(taskId);
+                } catch (err) {
+                    console.error('Error while confirming task:', err);
+                    if (checkboxEl) checkboxEl.checked = false;
+                }
+            }, impactDelayMs);
+
+            setTimeout(finish, cleanupDelayMs);
+        });
+    });
+}
+
 /* فتح نافذة التأكيد قبل اعتبار المهمة منجزة */
 function openConfirm(taskId, checkboxEl) {
     if (isTaskDone(taskId)) {
@@ -282,7 +394,8 @@ function openConfirm(taskId, checkboxEl) {
     document.body.classList.add('modal-open');
 }
 
-function closeConfirm(resetCheckbox = false) {
+function closeConfirm(resetCheckbox = false, force = false) {
+    if (confirmAnimationLock && !force) return;
     if (resetCheckbox && pendingCheckbox) pendingCheckbox.checked = false;
     pendingTaskId = null;
     pendingCheckbox = null;
@@ -802,14 +915,11 @@ function renderAll(animateProgress = false) {
 
 /* أحداث نافذة التأكيد والاختصارات */
 confirmOk.addEventListener('click', () => {
-    if (!pendingTaskId) return;
-    try {
-        setDone(pendingTaskId);
-    } catch (err) {
-        console.error('Error while confirming task:', err);
-    } finally {
-        closeConfirm(false);
-    }
+    if (!pendingTaskId || confirmAnimationLock) return;
+
+    const taskId = pendingTaskId;
+    const checkboxEl = pendingCheckbox;
+    launchConfirmCompletion(taskId, checkboxEl);
 });
 confirmCancel.addEventListener('click', () => closeConfirm(true));
 confirmOverlay.addEventListener('click', (e) => {
@@ -1072,11 +1182,11 @@ function playSuccessAnimation() {
     el.setAttribute('aria-hidden', 'false');
 
     if (navigator.vibrate) {
-        navigator.vibrate(35);
+        navigator.vibrate([30, 40, 30]);
     }
 
     setTimeout(() => {
         el.classList.remove('show');
         el.setAttribute('aria-hidden', 'true');
-    }, 1100);
+    }, 1350);
 }
