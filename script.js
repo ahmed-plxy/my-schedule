@@ -295,13 +295,41 @@ function closeConfirm(resetCheckbox = false) {
 /* تسجيل إنجاز المهمة في الحالة المحفوظة */
 function setDone(taskId) {
     if (isTaskDone(taskId)) return false;
+
+    // 🟢 حفظ مكانك الحالي (الأسبوع + اليوم + السكرول)
+    const currentOpenWeek = document.querySelector('.week-section[open]');
+    const currentOpenDay = document.querySelector('.day-accordion[open]');
+    const scrollY = window.scrollY;
+
+    // تسجيل إنجاز المهمة
     state.done[taskId] = {
         completed: true,
         completedDate: toDateKey(new Date()),
         completedAt: new Date().toISOString(),
     };
+
     saveState();
+
+    // إعادة رسم الصفحة
     renderAll(true);
+
+    // 🟢 ترجيعك لنفس المكان بعد التحديث
+    setTimeout(() => {
+        if (currentOpenWeek) {
+            const index = currentOpenWeek.dataset.weekIndex;
+            const newWeek = document.querySelector(`.week-section[data-week-index="${index}"]`);
+            if (newWeek) newWeek.open = true;
+        }
+
+        if (currentOpenDay) {
+            const key = currentOpenDay.dataset.dayKey;
+            const newDay = document.querySelector(`.day-accordion[data-day-key="${key}"]`);
+            if (newDay) newDay.open = true;
+        }
+
+        window.scrollTo(0, scrollY);
+    }, 0);
+
     return true;
 }
 
