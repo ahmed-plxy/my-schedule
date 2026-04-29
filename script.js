@@ -45,7 +45,7 @@ const fullPlan = basePlan.flatMap((item) => {
     return parts.map((partText, partIndex) => ({
         ...item,
         type: partIndex === 1 ? 'eng' : item.type,
-        //type: item.type,
+        /*type: item.type,*/
         sourceId: item.baseId,
         sourceId: item.baseId,
         partIndex,
