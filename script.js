@@ -1,7 +1,7 @@
 /* =========================
 إعدادات أساسية للمشروع
    ========================= */
-}
+
 const BASE_DATE = new Date(2026, 3, 21); // 21/4/2026
 const STORAGE_KEY = 'studyPlanStateV6';
 const LEGACY_KEY = 'fullPlanProgress';
