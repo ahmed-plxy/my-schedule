@@ -324,11 +324,11 @@ function setDone(taskId) {
         }
 
         // رجّع اليوم
-        if (currentOpenDay) {
-            const key = currentOpenDay.dataset.dayKey;
-            const newDay = document.querySelector(`.day-accordion[data-day-key="${key}"]`);
-            if (newDay) newDay.open = true;
-        }
+        openDays.forEach(day => {
+    const key = day.dataset.dayKey;
+    const newDay = document.querySelector(`.day-accordion[data-day-key="${key}"]`);
+    if (newDay) newDay.open = true;
+      });
 
         // 🎯 ركّز على نفس التاسك
         const taskEl = document.querySelector(`.subtask-card[data-id="${taskId}"]`);
