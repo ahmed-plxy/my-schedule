@@ -474,6 +474,15 @@ try {
  }
 
 /* حساب عدد الأيام المتتالية التي تم فيها إنجاز مهام */
+function getDoneDateKeys() {
+  const tasks = JSON.parse(localStorage.getItem("tasks")) || [];
+
+  return [...new Set(
+    tasks
+      .filter(task => task.completed && task.doneDate)
+      .map(task => task.doneDate)
+  )].sort();
+}
 function calculateStreak() {
     const keys = getDoneDateKeys();
     if (!keys.length) return 0;
