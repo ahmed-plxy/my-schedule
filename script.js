@@ -1066,8 +1066,11 @@ function renderTasks() {
 }
 function playSuccessAnimation() {
     const el = document.getElementById("successAnim");
-    if (!el) return;
-
+    if (!el) return; 
+   
+    el.classList.remove("show");
+     void el.offsetWidth;
+   
     el.classList.add("show");
 
     // vibration (لو مدعوم)
