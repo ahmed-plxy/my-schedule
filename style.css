@@ -814,3 +814,42 @@ input[type="checkbox"]:checked::after {
     font-weight: 650;
     line-height: 1.8;
 }
+.success-anim {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,0.4);
+    backdrop-filter: blur(6px);
+    z-index: 9999;
+    opacity: 0;
+    pointer-events: none;
+    transition: 0.3s;
+}
+
+.success-anim.show {
+    opacity: 1;
+}
+
+.checkmark {
+    font-size: 80px;
+    color: var(--success);
+    transform: scale(0.5);
+    opacity: 0;
+    animation: popCheck 0.5s ease forwards;
+}
+
+@keyframes popCheck {
+    0% {
+        transform: scale(0.3);
+        opacity: 0;
+    }
+    60% {
+        transform: scale(1.2);
+        opacity: 1;
+    }
+    100% {
+        transform: scale(1);
+    }
+}
