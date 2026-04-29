@@ -304,13 +304,23 @@ function closeConfirm(resetCheckbox = false) {
 
     // تسجيل إنجاز المهمة
     state.done[taskId] = {
-        done: true,
-        completedAt: Date.now()
-    };
+    completed: true,
+    completedDate: toDateKey(new Date()),
+    completedAt: new Date().toISOString(),
+};
 
-    saveState();
-    playSuccessAnimation();
+// احفظ أولًا
+saveState();
+
+// شغّل الأنيميشن
+playSuccessAnimation();
+
+// حدّث الواجهة لكن بدون ما يوقف الدالة لو حصل خطأ
+try {
     renderAll(true);
+} catch (err) {
+    console.error('renderAll failed after marking task done:', err);
+}
 
     requestAnimationFrame(() => {
         // رجّع الأسبوع المفتوح
@@ -793,8 +803,13 @@ function renderAll(animateProgress = false) {
 /* أحداث نافذة التأكيد والاختصارات */
 confirmOk.addEventListener('click', () => {
     if (!pendingTaskId) return;
-    setDone(pendingTaskId);
-    closeConfirm(false);
+    try {
+        setDone(pendingTaskId);
+    } catch (err) {
+        console.error('Error while confirming task:', err);
+    } finally {
+        closeConfirm(false);
+    }
 });
 confirmCancel.addEventListener('click', () => closeConfirm(true));
 confirmOverlay.addEventListener('click', (e) => {
