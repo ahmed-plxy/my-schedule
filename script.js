@@ -1181,21 +1181,4 @@ function renderTasks() {
         listContainer.appendChild(section);
     });
 }
-function playSuccessAnimation() {
-    const el = document.getElementById('successAnim');
-    if (!el) return;
 
-    el.classList.remove('show');
-    void el.offsetWidth;
-    el.classList.add('show');
-    el.setAttribute('aria-hidden', 'false');
-
-    if (navigator.vibrate) {
-        navigator.vibrate([30, 40, 30]);
-    }
-
-    setTimeout(() => {
-        el.classList.remove('show');
-        el.setAttribute('aria-hidden', 'true');
-    }, 1350);
-}
