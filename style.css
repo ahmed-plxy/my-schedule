@@ -830,6 +830,7 @@ input[type="checkbox"]:checked::after {
 
 .success-anim.show {
     opacity: 1;
+   pointer-events: auto;
 }
 
 .checkmark {
