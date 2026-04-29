@@ -90,7 +90,12 @@ let lastDateKey = toDateKey(new Date());
 let lastMonthKey = getMonthKey(new Date());
 let quickNextButton = null;
 let confirmAnimationLock = false;
-let confirmBeamEl = null;
+let confirmMotionFrame = null;
+let confirmFxLayer = null;
+let confirmTrailEl = null;
+let confirmCoreEl = null;
+let confirmHaloEl = null;
+let confirmSparkEls = [];
 
 /* رسائل تحفيزية تظهر أعلى الصفحة */
 const motivationQuotes = [
@@ -271,36 +276,75 @@ function moveTask(taskId, direction) {
     renderAll(true);
 }
 
-/* عناصر مؤقتة لتحريك ضربة المهمة نحو شريط التقدم */
-function createTaskBeam(sourceRect, targetRect) {
-    const beam = document.createElement('div');
-    beam.className = 'task-beam';
+/* =========================
+   حركة التأكيد الاحترافية
+   ========================= */
+function createConfirmFxLayer() {
+    if (confirmFxLayer) return confirmFxLayer;
+    const layer = document.createElement('div');
+    layer.className = 'confirm-fx-layer';
+    layer.setAttribute('aria-hidden', 'true');
 
-    const startX = sourceRect.left + sourceRect.width / 2;
-    const startY = sourceRect.top + sourceRect.height / 2;
-    const endX = targetRect.left + targetRect.width / 2;
-    const endY = targetRect.top + targetRect.height / 2;
-    const liftY = Math.min(startY - 110, startY - Math.max(90, sourceRect.height * 0.9));
-    const midX = startX + (endX - startX) * 0.74;
-    const midY = liftY + (endY - liftY) * 0.38;
+    const trail = document.createElement('div');
+    trail.className = 'transfer-trail';
 
-    beam.style.left = `${startX}px`;
-    beam.style.top = `${startY}px`;
-    beam.style.setProperty('--beam-end-x', `${endX - startX}px`);
-    beam.style.setProperty('--beam-end-y', `${endY - startY}px`);
-    beam.style.setProperty('--beam-mid-x', `${midX - startX}px`);
-    beam.style.setProperty('--beam-mid-y', `${midY - startY}px`);
-    beam.style.setProperty('--beam-lift-y', `${liftY - startY}px`);
+    const halo = document.createElement('div');
+    halo.className = 'transfer-halo';
 
-    document.body.appendChild(beam);
-    confirmBeamEl = beam;
-    return beam;
+    const core = document.createElement('div');
+    core.className = 'transfer-core';
+
+    layer.append(trail, halo, core);
+    document.body.appendChild(layer);
+
+    confirmFxLayer = layer;
+    confirmTrailEl = trail;
+    confirmHaloEl = halo;
+    confirmCoreEl = core;
+    confirmSparkEls = [];
+    return layer;
+}
+
+function createTransferSparkles(count, startX, startY, endX, endY) {
+    if (!confirmFxLayer) return;
+    confirmSparkEls.forEach(el => el.remove());
+    confirmSparkEls = [];
+
+    const spread = Math.max(28, Math.min(72, Math.hypot(endX - startX, endY - startY) * 0.08));
+    for (let i = 0; i < count; i += 1) {
+        const spark = document.createElement('span');
+        spark.className = 'transfer-spark';
+        const progress = 0.16 + Math.random() * 0.64;
+        const jitterX = (Math.random() - 0.5) * spread * 2;
+        const jitterY = (Math.random() - 0.5) * spread * 1.3;
+        const size = 4 + Math.random() * 5;
+        spark.style.width = `${size}px`;
+        spark.style.height = `${size}px`;
+        spark.style.left = `${startX}px`;
+        spark.style.top = `${startY}px`;
+        spark.style.setProperty('--spark-dx', `${(endX - startX) * progress + jitterX}px`);
+        spark.style.setProperty('--spark-dy', `${(endY - startY) * progress + jitterY}px`);
+        spark.style.setProperty('--spark-delay', `${Math.round(Math.random() * 180)}ms`);
+        spark.style.setProperty('--spark-duration', `${900 + Math.round(Math.random() * 700)}ms`);
+        spark.style.setProperty('--spark-scale', `${0.7 + Math.random() * 1.5}`);
+        confirmFxLayer.appendChild(spark);
+        confirmSparkEls.push(spark);
+    }
 }
 
 function resetConfirmMotionState({ keepFocus = false } = {}) {
-    if (confirmBeamEl) {
-        confirmBeamEl.remove();
-        confirmBeamEl = null;
+    if (confirmMotionFrame) {
+        cancelAnimationFrame(confirmMotionFrame);
+        confirmMotionFrame = null;
+    }
+    confirmSparkEls.forEach(el => el.remove());
+    confirmSparkEls = [];
+    if (confirmFxLayer) {
+        confirmFxLayer.remove();
+        confirmFxLayer = null;
+        confirmTrailEl = null;
+        confirmCoreEl = null;
+        confirmHaloEl = null;
     }
     confirmOverlay.classList.remove('launching');
     const modal = confirmOverlay.querySelector('.confirm-modal');
@@ -335,50 +379,131 @@ function launchConfirmCompletion(taskId, checkboxEl) {
     modal.classList.add('launching');
     stickyHeader?.classList.add('confirm-focus');
 
-    const beam = createTaskBeam(sourceRect, targetRect);
-    const beamDistance = Math.hypot(targetRect.left - sourceRect.left, targetRect.top - sourceRect.top);
-    const beamTravelMs = Math.max(620, Math.min(1020, Math.round(beamDistance * 0.9)));
-    const closeDelayMs = Math.max(200, Math.round(beamTravelMs * 0.26));
-    const impactDelayMs = Math.max(closeDelayMs + 90, Math.round(beamTravelMs * 0.78));
-    const cleanupDelayMs = impactDelayMs + 460;
+    const layer = createConfirmFxLayer();
+    const startX = sourceRect.left + sourceRect.width / 2;
+    const startY = sourceRect.top + sourceRect.height / 2;
+    const endX = targetRect.left + targetRect.width / 2;
+    const endY = targetRect.top + targetRect.height / 2;
+    const distance = Math.hypot(endX - startX, endY - startY);
+    const duration = Math.max(2200, Math.min(3000, Math.round(1700 + distance * 0.45)));
+    const compressDelay = Math.max(1120, Math.min(1300, Math.round(duration * 0.46)));
+    const impactAt = Math.max(compressDelay + 320, Math.round(duration * 0.74));
+    const cleanupAt = duration + 260;
 
-    beam.style.setProperty('--beam-duration', `${beamTravelMs}ms`);
+    layer.style.setProperty('--launch-duration', `${duration}ms`);
+    createTransferSparkles(16, startX, startY, endX, endY);
 
-    let settled = false;
+    const p0 = { x: startX, y: startY };
+    const p1 = { x: startX, y: startY - Math.max(140, distance * 0.22) };
+    const p2 = { x: endX, y: endY - Math.max(120, distance * 0.14) };
+    const p3 = { x: endX, y: endY };
+
+    const easeInOutCubic = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+    const clamp01 = v => Math.max(0, Math.min(1, v));
+    const lerp = (a, b, t) => a + (b - a) * t;
+    const bezier = (a, b, c, d, t) => {
+        const u = 1 - t;
+        return {
+            x: u * u * u * a.x + 3 * u * u * t * b.x + 3 * u * t * t * c.x + t * t * t * d.x,
+            y: u * u * u * a.y + 3 * u * u * t * b.y + 3 * u * t * t * c.y + t * t * t * d.y,
+        };
+    };
+
+    const startTime = performance.now();
+    let previousPoint = p0;
+    let impactTriggered = false;
+    let closed = false;
+
     const finish = () => {
-        if (settled) return;
-        settled = true;
+        if (closed) return;
+        closed = true;
         resetConfirmMotionState();
         confirmAnimationLock = false;
     };
 
+    const frame = (now) => {
+        const raw = clamp01((now - startTime) / duration);
+        const eased = easeInOutCubic(raw);
+        const point = bezier(p0, p1, p2, p3, eased);
+        const dx = point.x - previousPoint.x;
+        const dy = point.y - previousPoint.y;
+        const dist = Math.hypot(dx, dy);
+        const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+
+        if (confirmCoreEl) {
+            const coreScale = raw < 0.12 ? lerp(1, 0.55, raw / 0.12) : raw < 0.82 ? lerp(0.55, 1.08, (raw - 0.12) / 0.7) : lerp(1.08, 0.78, (raw - 0.82) / 0.18);
+            confirmCoreEl.style.transform = `translate(${point.x}px, ${point.y}px) translate(-50%, -50%) scale(${coreScale})`;
+            confirmCoreEl.style.opacity = raw < 0.06 ? String(raw / 0.06) : raw > 0.94 ? String((1 - raw) / 0.06) : '1';
+        }
+        if (confirmHaloEl) {
+            const haloScale = lerp(0.7, 1.45, eased);
+            confirmHaloEl.style.transform = `translate(${point.x}px, ${point.y}px) translate(-50%, -50%) scale(${haloScale})`;
+            confirmHaloEl.style.opacity = raw < 0.08 ? String(raw / 0.08) : raw > 0.92 ? String((1 - raw) / 0.08) : '1';
+        }
+        if (confirmTrailEl) {
+            const trailFade = raw < 0.1 ? raw / 0.1 : raw > 0.9 ? (1 - raw) / 0.1 : 1;
+            confirmTrailEl.style.opacity = String(Math.max(0, trailFade));
+            confirmTrailEl.style.width = `${Math.max(0, dist + 22)}px`;
+            confirmTrailEl.style.transform = `translate(${previousPoint.x}px, ${previousPoint.y}px) rotate(${angle}deg)`;
+        }
+        previousPoint = point;
+
+        if (!impactTriggered && raw >= impactAt / duration) {
+            impactTriggered = true;
+            barTarget.classList.add('impact');
+            fill?.classList.add('impact-fill');
+            try {
+                setDone(taskId);
+            } catch (err) {
+                console.error('Error while confirming task:', err);
+                if (checkboxEl) checkboxEl.checked = false;
+            }
+        }
+
+        const modalProgress = Math.max(0, raw - compressDelay / duration);
+        if (modalProgress > 0 && modalProgress < 1) {
+            modal.style.setProperty('--launch-progress', String(clamp01(modalProgress / 0.78)));
+        }
+
+        if (raw < 1) {
+            confirmMotionFrame = requestAnimationFrame(frame);
+            return;
+        }
+        setTimeout(finish, Math.max(0, cleanupAt - duration));
+    };
+
     requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-            beam.classList.add('launch');
+            modal.style.setProperty('--launch-progress', '0');
+            confirmMotionFrame = requestAnimationFrame(frame);
 
-            // مرحلة الاستعداد: الكرت يتكثف ويُسحب بصريًا قبل الإطلاق.
+            // مرحلة التهيئة: الكرت يهدأ ويُسحب بصريًا قبل الاندفاع.
             setTimeout(() => {
                 closeConfirm(false, true);
-            }, closeDelayMs);
+            }, compressDelay);
 
-            // لحظة الاصطدام: تسجيل الإنجاز ثم تفجير وميض البار.
+            // حماية إضافية لو انتهى الوقت قبل إطلاق الحدث في الأجهزة البطيئة.
             setTimeout(() => {
-                barTarget.classList.add('impact');
-                fill?.classList.add('impact-fill');
-                try {
-                    setDone(taskId);
-                } catch (err) {
-                    console.error('Error while confirming task:', err);
-                    if (checkboxEl) checkboxEl.checked = false;
+                if (!impactTriggered) {
+                    impactTriggered = true;
+                    barTarget.classList.add('impact');
+                    fill?.classList.add('impact-fill');
+                    try {
+                        setDone(taskId);
+                    } catch (err) {
+                        console.error('Error while confirming task:', err);
+                        if (checkboxEl) checkboxEl.checked = false;
+                    }
                 }
-            }, impactDelayMs);
+            }, impactAt);
 
-            setTimeout(finish, cleanupDelayMs);
+            setTimeout(finish, cleanupAt);
         });
     });
 }
 
 /* فتح نافذة التأكيد قبل اعتبار المهمة منجزة */
+
 function openConfirm(taskId, checkboxEl) {
     if (isTaskDone(taskId)) {
         if (checkboxEl) checkboxEl.checked = true;
