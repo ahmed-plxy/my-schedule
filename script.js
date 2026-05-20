@@ -23,6 +23,31 @@ const basePlan = studyWeeks.flatMap((week, weekIndex) =>
     })
 );
 
+/* تحويل المخطط الإضافي أسفل الأسبوع السادس إلى قائمة مهام قابلة للتتبع */
+const specialBasePlan = Array.isArray(specialJourney)
+    ? specialJourney.flatMap((month, monthIndex) =>
+        (month.phases || []).flatMap((phase, phaseIndex) =>
+            (phase.tasks || []).map((item, taskIndex) => {
+                const dateText = String(item.date || '').trim();
+                const scheduleDate = parseLooseDate(dateText);
+                return {
+                    ...item,
+                    monthTitle: month.title,
+                    monthSubtitle: month.subtitle,
+                    phaseTitle: phase.title,
+                    monthIndex,
+                    phaseIndex,
+                    taskIndex,
+                    displayDate: dateText,
+                    dateKey: scheduleDate ? toDateKey(scheduleDate) : null,
+                    scheduleDate: scheduleDate || null,
+                    baseId: `special-${String(monthIndex + 1).padStart(2, '0')}-${String(phaseIndex + 1).padStart(2, '0')}-${String(taskIndex + 1).padStart(2, '0')}`
+                };
+            })
+        )
+    )
+    : [];
+
 /* بعض المهام تحتوي على جزأين: المهمة الأساسية + جزء إنجليزي بعد علامة + En */
 function splitTaskText(text) {
     const raw = String(text || '').trim();
@@ -39,7 +64,7 @@ function splitTaskText(text) {
 }
 
 /* تفكيك المهمة الواحدة إلى مهمة أو أكثر عند وجود أكثر من جزء */
-const fullPlan = basePlan.flatMap((item) => {
+const fullPlan = [...basePlan, ...specialBasePlan].flatMap((item) => {
     const parts = splitTaskText(item.t);
 
     return parts.map((partText, partIndex) => ({
@@ -55,6 +80,33 @@ const fullPlan = basePlan.flatMap((item) => {
         partLabel: parts.length > 1 ? `جزء ${partIndex + 1} من ${parts.length}` : null,
     }));
 });
+
+const specialJourneyPlan = Array.isArray(specialJourney)
+    ? specialJourney.map((month, monthIndex) => ({
+        ...month,
+        monthIndex,
+        phases: (month.phases || []).map((phase, phaseIndex) => ({
+            ...phase,
+            phaseIndex,
+            tasks: (phase.tasks || []).map((task, taskIndex) => {
+                const base = specialBasePlan.find(item => item.monthIndex === monthIndex && item.phaseIndex === phaseIndex && item.taskIndex === taskIndex);
+                return base || {
+                    ...task,
+                    monthTitle: month.title,
+                    monthSubtitle: month.subtitle,
+                    phaseTitle: phase.title,
+                    monthIndex,
+                    phaseIndex,
+                    taskIndex,
+                    displayDate: task.date,
+                    dateKey: null,
+                    scheduleDate: null,
+                    baseId: `special-${String(monthIndex + 1).padStart(2, '0')}-${String(phaseIndex + 1).padStart(2, '0')}-${String(taskIndex + 1).padStart(2, '0')}`,
+                };
+            }),
+        })),
+    }))
+    : [];
 /* العدّ التنازلي للامتحانات النهائية */
 const exams = [
     { id: 'chem', name: 'الكيمياء', dateText: '2/7/2026 الساعة 6:00 صباحًا', target: new Date(2026, 6, 2, 6, 0, 0) },
@@ -79,6 +131,11 @@ const motivationBanner = document.getElementById('motivationBanner');
 const todayTaskBox = document.getElementById('todayTask');
 const filterButtons = document.getElementById('filterButtons');
 const resetBtn = document.getElementById('resetBtn');
+const specialScheduleWrap = document.getElementById('specialScheduleWrap');
+let specialProgressFill = null;
+let specialProgressText = null;
+const THEME_KEY = 'studyPlanThemeV1';
+let themeToggleButton = null;
 
 /* الحالة المحفوظة في المتصفح: ترتيب المهام وما تم إنجازه */
 const state = loadState();
@@ -135,8 +192,18 @@ function parseDateKey(key) {
     return new Date(y, m - 1, d);
 }
 
+function parseLooseDate(text) {
+    const raw = String(text || '').trim();
+    const match = raw.match(/(\d{1,2})\/(\d{1,2})/);
+    if (!match) return null;
+    const month = Number(match[1]);
+    const day = Number(match[2]);
+    if (!month || !day) return null;
+    return new Date(2026, month - 1, day);
+}
+
 function formatTaskText(task) {
-    return `${task?.d || ''} — ${task?.t || ''}`.trim();
+    return `${task?.d || task?.displayDate || ''} — ${task?.t || ''}`.trim();
 }
 
 function escapeHTML(value) {
@@ -160,7 +227,7 @@ function loadState() {
         // لو كانت النسخة القديمة تخزن المهمة كاملة، نوزع حالة الإنجاز على الأجزاء الجديدة
     const expandedBySource = new Map();
         fullPlan.forEach(task => {
-            const source = task.sourceId || task.id;
+            const source = task.sourceId || getTaskId(task);
             if (!expandedBySource.has(source)) expandedBySource.set(source, []);
             expandedBySource.get(source).push(task.id);
         });
@@ -243,8 +310,34 @@ function getTagLabel(type) {
     return labels[type] || 'مهمة';
 }
 
+function getTaskTags(task) {
+    const tags = [];
+    const addTag = (label, className) => {
+        if (!label || tags.some(tag => tag.label === label)) return;
+        tags.push({ label, className });
+    };
+
+    addTag(getTagLabel(task.type), `tag-${task.type || 'rev'}`);
+
+    const text = `${task?.t || ''} ${task?.parentText || ''}`;
+    if (/يوم\s*امتحان/i.test(text)) addTag('الامتحان', 'tag-exam');
+    if (task.type === 'sol' || /حل|شوامل|شاملة|شامل|عموما/i.test(text)) addTag('حل', 'tag-sol');
+
+    return tags;
+}
+
+function renderTagChips(task) {
+    return getTaskTags(task)
+        .map(tag => `<span class="tag ${escapeHTML(tag.className)}">${escapeHTML(tag.label)}</span>`)
+        .join('');
+}
+
+function getTaskId(task) {
+    return task?.id || task?.baseId || null;
+}
+
 function getDoneCount() {
-    return fullPlan.reduce((count, task) => count + (isTaskDone(task.id) ? 1 : 0), 0);
+    return fullPlan.reduce((count, task) => count + (isTaskDone(getTaskId(task)) ? 1 : 0), 0);
 }
 
 /* شريط التقدم أعلى الصفحة */
@@ -352,6 +445,7 @@ function resetConfirmMotionState({ keepFocus = false } = {}) {
     if (!keepFocus) stickyHeader?.classList.remove('confirm-focus');
     progressBarBg?.classList.remove('impact');
     fill?.classList.remove('impact-fill');
+    confirmOk?.classList.remove('confirm-ok-burst');
 }
 
 function launchConfirmCompletion(taskId, checkboxEl) {
@@ -360,12 +454,10 @@ function launchConfirmCompletion(taskId, checkboxEl) {
 
     const modal = confirmOverlay.querySelector('.confirm-modal');
     const barTarget = progressBarBg || fill?.parentElement;
-    const sourceRect = modal?.getBoundingClientRect();
-    const targetRect = barTarget?.getBoundingClientRect();
 
     if (checkboxEl) checkboxEl.checked = true;
 
-    if (!modal || !barTarget || !sourceRect || !targetRect) {
+    if (!modal || !barTarget) {
         closeConfirm(false, true);
         try {
             setDone(taskId);
@@ -377,43 +469,8 @@ function launchConfirmCompletion(taskId, checkboxEl) {
 
     confirmOverlay.classList.add('launching');
     modal.classList.add('launching');
-    stickyHeader?.classList.add('confirm-focus');
 
-    const layer = createConfirmFxLayer();
-    const startX = sourceRect.left + sourceRect.width / 2;
-    const startY = sourceRect.top + sourceRect.height / 2;
-    const endX = targetRect.left + targetRect.width / 2;
-    const endY = targetRect.top + targetRect.height / 2;
-    const distance = Math.hypot(endX - startX, endY - startY);
-    const duration = Math.max(2200, Math.min(3000, Math.round(1700 + distance * 0.45)));
-    const compressDelay = Math.max(1120, Math.min(1300, Math.round(duration * 0.46)));
-    const impactAt = Math.max(compressDelay + 320, Math.round(duration * 0.74));
-    const cleanupAt = duration + 260;
-
-    layer.style.setProperty('--launch-duration', `${duration}ms`);
-    createTransferSparkles(16, startX, startY, endX, endY);
-
-    const p0 = { x: startX, y: startY };
-    const p1 = { x: startX, y: startY - Math.max(140, distance * 0.22) };
-    const p2 = { x: endX, y: endY - Math.max(120, distance * 0.14) };
-    const p3 = { x: endX, y: endY };
-
-    const easeInOutCubic = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
-    const clamp01 = v => Math.max(0, Math.min(1, v));
-    const lerp = (a, b, t) => a + (b - a) * t;
-    const bezier = (a, b, c, d, t) => {
-        const u = 1 - t;
-        return {
-            x: u * u * u * a.x + 3 * u * u * t * b.x + 3 * u * t * t * c.x + t * t * t * d.x,
-            y: u * u * u * a.y + 3 * u * u * t * b.y + 3 * u * t * t * c.y + t * t * t * d.y,
-        };
-    };
-
-    const startTime = performance.now();
-    let previousPoint = p0;
-    let impactTriggered = false;
     let closed = false;
-
     const finish = () => {
         if (closed) return;
         closed = true;
@@ -421,83 +478,22 @@ function launchConfirmCompletion(taskId, checkboxEl) {
         confirmAnimationLock = false;
     };
 
-    const frame = (now) => {
-        const raw = clamp01((now - startTime) / duration);
-        const eased = easeInOutCubic(raw);
-        const point = bezier(p0, p1, p2, p3, eased);
-        const dx = point.x - previousPoint.x;
-        const dy = point.y - previousPoint.y;
-        const dist = Math.hypot(dx, dy);
-        const angle = Math.atan2(dy, dx) * 180 / Math.PI;
-
-        if (confirmCoreEl) {
-            const coreScale = raw < 0.12 ? lerp(1, 0.55, raw / 0.12) : raw < 0.82 ? lerp(0.55, 1.08, (raw - 0.12) / 0.7) : lerp(1.08, 0.78, (raw - 0.82) / 0.18);
-            confirmCoreEl.style.transform = `translate(${point.x}px, ${point.y}px) translate(-50%, -50%) scale(${coreScale})`;
-            confirmCoreEl.style.opacity = raw < 0.06 ? String(raw / 0.06) : raw > 0.94 ? String((1 - raw) / 0.06) : '1';
-        }
-        if (confirmHaloEl) {
-            const haloScale = lerp(0.7, 1.45, eased);
-            confirmHaloEl.style.transform = `translate(${point.x}px, ${point.y}px) translate(-50%, -50%) scale(${haloScale})`;
-            confirmHaloEl.style.opacity = raw < 0.08 ? String(raw / 0.08) : raw > 0.92 ? String((1 - raw) / 0.08) : '1';
-        }
-        if (confirmTrailEl) {
-            const trailFade = raw < 0.1 ? raw / 0.1 : raw > 0.9 ? (1 - raw) / 0.1 : 1;
-            confirmTrailEl.style.opacity = String(Math.max(0, trailFade));
-            confirmTrailEl.style.width = `${Math.max(0, dist + 22)}px`;
-            confirmTrailEl.style.transform = `translate(${previousPoint.x}px, ${previousPoint.y}px) rotate(${angle}deg)`;
-        }
-        previousPoint = point;
-
-        if (!impactTriggered && raw >= impactAt / duration) {
-            impactTriggered = true;
-            barTarget.classList.add('impact');
-            fill?.classList.add('impact-fill');
-            try {
-                setDone(taskId);
-            } catch (err) {
-                console.error('Error while confirming task:', err);
-                if (checkboxEl) checkboxEl.checked = false;
-            }
-        }
-
-        const modalProgress = Math.max(0, raw - compressDelay / duration);
-        if (modalProgress > 0 && modalProgress < 1) {
-            modal.style.setProperty('--launch-progress', String(clamp01(modalProgress / 0.78)));
-        }
-
-        if (raw < 1) {
-            confirmMotionFrame = requestAnimationFrame(frame);
-            return;
-        }
-        setTimeout(finish, Math.max(0, cleanupAt - duration));
-    };
-
     requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-            modal.style.setProperty('--launch-progress', '0');
-            confirmMotionFrame = requestAnimationFrame(frame);
+            setTimeout(() => {
+                try {
+                    setDone(taskId);
+                } catch (err) {
+                    console.error('Error while confirming task:', err);
+                    if (checkboxEl) checkboxEl.checked = false;
+                }
+            }, 90);
 
-            // مرحلة التهيئة: الكرت يهدأ ويُسحب بصريًا قبل الاندفاع.
             setTimeout(() => {
                 closeConfirm(false, true);
-            }, compressDelay);
+            }, 180);
 
-            // حماية إضافية لو انتهى الوقت قبل إطلاق الحدث في الأجهزة البطيئة.
-            setTimeout(() => {
-                if (!impactTriggered) {
-                    impactTriggered = true;
-                    barTarget.classList.add('impact');
-                    fill?.classList.add('impact-fill');
-                    try {
-                        setDone(taskId);
-                    } catch (err) {
-                        console.error('Error while confirming task:', err);
-                        if (checkboxEl) checkboxEl.checked = false;
-                    }
-                }
-            }, impactAt);
-
-            setTimeout(finish, cleanupAt);
+            setTimeout(finish, 320);
         });
     });
 }
@@ -533,42 +529,32 @@ function closeConfirm(resetCheckbox = false, force = false) {
  function setDone(taskId) {
     if (isTaskDone(taskId)) return false;
 
-    // نحفظ موضع الصفحة والعناصر المفتوحة قبل إعادة الرسم
     const currentOpenWeek = document.querySelector('.week-section[open]');
     const openDays = [...document.querySelectorAll('.day-accordion[open]')];
-    const anchorBefore = document.querySelector(`.subtask-card[data-id="${taskId}"]`);
-    const anchorTopBefore = anchorBefore ? anchorBefore.getBoundingClientRect().top : null;
     const scrollYBefore = window.scrollY;
 
-    // تسجيل إنجاز المهمة
     state.done[taskId] = {
-    completed: true,
-    completedDate: toDateKey(new Date()),
-    completedAt: new Date().toISOString(),
-};
+        completed: true,
+        completedDate: toDateKey(new Date()),
+        completedAt: new Date().toISOString(),
+    };
 
-// احفظ أولًا
-saveState();
+    saveState();
+    playSuccessAnimation();
 
-// شغّل الأنيميشن
-playSuccessAnimation();
-
-// حدّث الواجهة لكن بدون ما يوقف الدالة لو حصل خطأ
-try {
-    renderAll(true);
-} catch (err) {
-    console.error('renderAll failed after marking task done:', err);
-}
+    try {
+        renderAll(true);
+    } catch (err) {
+        console.error('renderAll failed after marking task done:', err);
+    }
 
     requestAnimationFrame(() => {
-        // رجّع الأسبوع المفتوح
         if (currentOpenWeek) {
             const index = currentOpenWeek.dataset.weekIndex;
             const newWeek = document.querySelector(`.week-section[data-week-index="${index}"]`);
             if (newWeek) newWeek.open = true;
         }
 
-        // رجّع الأيام المفتوحة
         openDays.forEach(day => {
             const key = day.dataset.dayKey;
             const newDay = document.querySelector(`.day-accordion[data-day-key="${key}"]`);
@@ -576,22 +562,7 @@ try {
         });
 
         requestAnimationFrame(() => {
-            const taskEl = document.querySelector(`.subtask-card[data-id="${taskId}"]`);
-
-            if (taskEl) {
-                // نثبت نفس مكان البطاقة على الشاشة بدل ما تنط لنص الصفحة
-                if (anchorTopBefore !== null) {
-                    const nextTop = taskEl.getBoundingClientRect().top;
-                    window.scrollBy({ top: nextTop - anchorTopBefore, behavior: 'auto' });
-                } else {
-                    window.scrollTo({ top: scrollYBefore, behavior: 'auto' });
-                }
-
-                taskEl.classList.add('task-flash');
-                setTimeout(() => taskEl.classList.remove('task-flash'), 900);
-            } else {
-                window.scrollTo({ top: scrollYBefore, behavior: 'auto' });
-            }
+            window.scrollTo({ top: scrollYBefore, behavior: 'auto' });
         });
     });
 
@@ -638,7 +609,7 @@ function getTopSubject() {
     // العدّ لكل مادة لمعرفة الأعلى إنجازًا
     const counts = { phys: 0, chem: 0, bio: 0, sol: 0 };
     fullPlan.forEach(task => {
-        if (isTaskDone(task.id)) counts[task.type] = (counts[task.type] || 0) + 1;
+        if (isTaskDone(getTaskId(task))) counts[task.type] = (counts[task.type] || 0) + 1;
     });
 
     const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
@@ -659,7 +630,7 @@ function getNextTask() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     // نبحث عن أول مهمة لم تُنجز وما زال موعدها قادمًا
-    const remaining = orderedTasks().filter(task => !isTaskDone(task.id));
+    const remaining = orderedTasks().filter(task => !isTaskDone(getTaskId(task)));
     if (!remaining.length) return null;
 
     const scheduledTodayOrLater = remaining.find(task => task.scheduleDate.getTime() >= today.getTime());
@@ -751,8 +722,8 @@ function applyFilter(nextFilter) {
 
 /* إرجاع المهام بعد تطبيق الفلتر الحالي */
 function getFilteredTasks(tasks) {
-    if (currentFilter === 'done') return tasks.filter(task => isTaskDone(task.id));
-    if (currentFilter === 'pending') return tasks.filter(task => !isTaskDone(task.id));
+    if (currentFilter === 'done') return tasks.filter(task => isTaskDone(getTaskId(task)));
+    if (currentFilter === 'pending') return tasks.filter(task => !isTaskDone(getTaskId(task)));
     return tasks;
 }
 
@@ -828,12 +799,15 @@ function buildTaskCard(item, index, arr, isCurrentWeek) {
 function renderTasks() {
     listContainer.innerHTML = '';
     const todayKey = toDateKey(new Date());
+    const allOrdered = orderedTasks();
 
     studyWeeks.forEach((week, weekIndex) => {
-        const weekTasksOrdered = orderedTasks().filter(task => task.weekIndex === weekIndex);
+        const weekTasksOrdered = allOrdered.filter(task => task.weekIndex === weekIndex);
         const section = buildWeekAccordion(week, weekIndex, weekTasksOrdered, todayKey);
         if (section) listContainer.appendChild(section);
     });
+
+    renderSpecialSchedule();
 }
 
 /* تنسيق الأرقام في العد التنازلي */
@@ -879,6 +853,138 @@ function renderCountdown() {
     });
 }
 
+function buildSpecialTaskCard(task) {
+    const done = isTaskDone(getTaskId(task));
+    const isToday = task.dateKey === toDateKey(new Date());
+    const card = document.createElement('article');
+    card.className = `special-task-card ${done ? 'done' : ''} ${isToday ? 'current-day' : ''}`.trim();
+    card.dataset.id = getTaskId(task);
+    card.tabIndex = 0;
+
+    card.innerHTML = `
+        <div class="special-task-top">
+            <div class="special-task-date">
+                <span class="special-date-chip">${escapeHTML(task.displayDate || task.d || '')}</span>
+                <span class="special-day-chip">${escapeHTML(task.day || '')}</span>
+            </div>
+            <div class="special-task-tags">${renderTagChips(task)}</div>
+        </div>
+        <div class="special-task-body">${escapeHTML(task.t)}</div>
+        <div class="special-task-foot">${done ? 'تمّت المهمة' : 'اضغط للتأكيد'}</div>
+    `;
+
+    card.addEventListener('click', () => {
+        openConfirm(getTaskId(task), null);
+    });
+
+    card.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            openConfirm(getTaskId(task), null);
+        }
+    });
+
+    return card;
+}
+
+function buildPhaseAccordion(phase, tasks, todayKey) {
+    const visibleTasks = getFilteredTasks(tasks);
+    if (visibleTasks.length === 0) return null;
+
+    const doneCount = tasks.filter(task => isTaskDone(getTaskId(task))).length;
+    const totalCount = tasks.length;
+    const phaseCurrent = tasks.some(task => task.dateKey && task.dateKey === todayKey);
+    const phaseDone = totalCount > 0 && tasks.every(task => isTaskDone(getTaskId(task)));
+
+    const phaseEl = document.createElement('details');
+    phaseEl.className = `phase-accordion ${phaseDone ? 'done' : ''} ${phaseCurrent ? 'current-day' : ''}`.trim();
+    phaseEl.open = phase.phaseIndex === 0;
+
+    phaseEl.innerHTML = `
+        <summary class="phase-summary">
+            <div class="phase-summary-left">
+                <span class="accordion-arrow" aria-hidden="true">↓</span>
+                <div class="phase-summary-text">
+                    <div class="phase-title">${escapeHTML(phase.title)}</div>
+                    <div class="phase-meta">
+                        <span class="phase-count">${doneCount}/${totalCount}</span>
+                        ${phaseCurrent ? '<span class="week-badge current">اليوم الحالي</span>' : ''}
+                    </div>
+                </div>
+            </div>
+            <div class="phase-state">${phaseDone ? 'مقفولة' : 'لسه شغالة'}</div>
+        </summary>
+        <div class="phase-body"></div>
+    `;
+
+    const body = phaseEl.querySelector('.phase-body');
+    visibleTasks.forEach(task => body.appendChild(buildSpecialTaskCard(task)));
+
+    return phaseEl;
+}
+
+function updateSpecialProgress() {
+    const total = specialBasePlan.length;
+    const doneCount = specialBasePlan.reduce((count, task) => count + (isTaskDone(task.baseId) ? 1 : 0), 0);
+    const percentage = total > 0 ? Math.round((doneCount / total) * 100) : 0;
+
+    if (specialProgressFill) specialProgressFill.style.width = `${percentage}%`;
+    if (specialProgressText) specialProgressText.textContent = `${percentage}%`;
+}
+
+function renderSpecialSchedule() {
+    if (!specialScheduleWrap) return;
+    specialScheduleWrap.innerHTML = '';
+
+    if (!specialJourneyPlan.length) return;
+
+    const todayKey = toDateKey(new Date());
+    const month = specialJourneyPlan[0];
+    const monthTasks = month.phases.flatMap(phase => phase.tasks);
+    const doneCount = monthTasks.filter(task => isTaskDone(getTaskId(task))).length;
+    const totalCount = monthTasks.length;
+    const monthDone = totalCount > 0 && monthTasks.every(task => isTaskDone(getTaskId(task)));
+
+    const monthEl = document.createElement('details');
+    monthEl.className = `special-month-section ${monthDone ? 'done' : ''}`.trim();
+    monthEl.open = true;
+
+    monthEl.innerHTML = `
+        <summary class="special-month-header">
+            <div class="special-month-header-left">
+                <span class="accordion-arrow" aria-hidden="true">↓</span>
+                <div class="special-month-copy">
+                    <div class="special-month-title">${escapeHTML(month.title)}</div>
+                    <div class="special-month-subtitle">${escapeHTML(month.subtitle || '')}</div>
+                </div>
+            </div>
+            <div class="special-month-status">${doneCount}/${totalCount} مهمة</div>
+        </summary>
+        <div class="special-month-body">
+            <div class="special-progress-card">
+                <div class="special-progress-row">
+                    <span>تقدم المرحلة الجديدة</span>
+                    <span class="special-progress-percent">0%</span>
+                </div>
+                <div class="special-bar-bg"><div class="special-bar-fill"></div></div>
+            </div>
+            <div class="special-phases"></div>
+        </div>
+    `;
+
+    specialProgressFill = monthEl.querySelector('.special-bar-fill');
+    specialProgressText = monthEl.querySelector('.special-progress-percent');
+    const phaseWrap = monthEl.querySelector('.special-phases');
+
+    month.phases.forEach(phase => {
+        const phaseEl = buildPhaseAccordion(phase, phase.tasks, todayKey);
+        if (phaseEl) phaseWrap.appendChild(phaseEl);
+    });
+
+    specialScheduleWrap.appendChild(monthEl);
+    updateSpecialProgress();
+}
+
 /* تحديث العد التنازلي كل ثانية */
 function updateCountdown() {
     const now = new Date();
@@ -909,115 +1015,47 @@ function updateMotivation() {
 }
 
 /* تبديل الثيمات عبر متغيرات CSS */
-function setTheme(theme) {
-    const root = document.documentElement;
-    const themes = {
-        default: {
-            '--bg': '#050505',
-            '--bg-gradient': '#111111',
-            '--card-bg': '#151515',
-            '--glass': 'rgba(10, 10, 10, 0.85)',
-            '--text-main': '#ffffff',
-            '--text-dim': '#a1a1aa',
-            '--accent': '#00f2fe',
-            '--success': '#00ff87',
-            '--chem-color': '#145dfa',
-            '--phys-color': '#d3f800',
-            '--bio-color': '#04f89a',
-            '--rev-color': '#8b5cf6',
-            '--sol-color': '#fa1b1b',
-            '--line': '#2a2a2a',
-        },
-        blue: {
-            '--bg': '#040816',
-            '--bg-gradient': '#0c1b3a',
-            '--card-bg': '#101b33',
-            '--glass': 'rgba(5, 10, 25, 0.84)',
-            '--text-main': '#f8fbff',
-            '--text-dim': '#b6c2e2',
-            '--accent': '#60a5fa',
-            '--success': '#22d3ee',
-            '--chem-color': '#ff0000',
-            '--phys-color': '#5afc10',
-            '--bio-color': '#00ffd5',
-            '--rev-color': '#c084fc',
-            '--sol-color': '#ff13b8',
-            '--line': '#28406b',
-        },
-        gold: {
-            '--bg': '#120c04',
-            '--bg-gradient': '#2b1a06',
-            '--card-bg': '#22150b',
-            '--glass': 'rgba(20, 12, 4, 0.86)',
-            '--text-main': '#fff8ea',
-            '--text-dim': '#d8c7a1',
-            '--accent': '#f59e0b',
-            '--success': '#facc15',
-            '--chem-color': '#b0fa04',
-            '--phys-color': '#1b62fc',
-            '--bio-color': '#4800f0',
-            '--rev-color': '#c084fc',
-            '--sol-color': '#018313',
-            '--line': '#5c4522',
-        },
-        red: {
-            '--bg': '#150404',
-            '--bg-gradient': '#3c0c0c',
-            '--card-bg': '#260909',
-            '--glass': 'rgba(20, 5, 5, 0.86)',
-            '--text-main': '#fff6f6',
-            '--text-dim': '#e3bbbb',
-            '--accent': '#fb7185',
-            '--success': '#f97316',
-            '--chem-color': '#fc0000',
-            '--phys-color': '#2dff25',
-            '--bio-color': '#86efac',
-            '--rev-color': '#8000ff',
-            '--sol-color': '#ee0028',
-            '--line': '#5a2020',
-        },
-        violet: {
-            '--bg': '#0d0616',
-            '--bg-gradient': '#2a1244',
-            '--card-bg': '#181024',
-            '--glass': 'rgba(12, 7, 23, 0.86)',
-            '--text-main': '#fcf7ff',
-            '--text-dim': '#d8c6ee',
-            '--accent': '#c084fc',
-            '--success': '#a3e635',
-            '--chem-color': '#60a5fa',
-            '--phys-color': '#fbbf24',
-            '--bio-color': '#34d399',
-            '--rev-color': '#f472b6',
-            '--sol-color': '#fb7185',
-            '--line': '#3f2b61',
-        },
-        forest: {
-            '--bg': '#04110b',
-            '--bg-gradient': '#10261a',
-            '--card-bg': '#0e1c14',
-            '--glass': 'rgba(5, 17, 10, 0.86)',
-            '--text-main': '#f5fff8',
-            '--text-dim': '#bfd4c6',
-            '--accent': '#34d399',
-            '--success': '#22c55e',
-            '--chem-color': '#22c55e',
-            '--phys-color': '#fbbf24',
-            '--bio-color': '#86efac',
-            '--rev-color': '#67e8f9',
-            '--sol-color': '#fb7185',
-            '--line': '#23402f',
-        },
-    };
+function syncThemeMeta(theme) {
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', theme === 'dark' ? '#1c1612' : '#eadbc8');
+}
 
-    // اختيار القيم الخاصة بالثيم وتطبيقها على متغيرات CSS
-    const values = themes[theme] || themes.default;
-    Object.entries(values).forEach(([key, value]) => root.style.setProperty(key, value));
-    localStorage.setItem('siteTheme', theme);
+function syncThemeToggle(theme) {
+    if (!themeToggleButton) return;
+    const isDark = theme === 'dark';
+    themeToggleButton.textContent = isDark ? '☀' : '☾';
+    themeToggleButton.title = isDark ? 'الوضع الفاتح' : 'الوضع الداكن';
+    themeToggleButton.setAttribute('aria-label', isDark ? 'تفعيل الوضع الفاتح' : 'تفعيل الوضع الداكن');
+    themeToggleButton.classList.toggle('is-dark', isDark);
+}
 
-    document.querySelectorAll('.theme-buttons button').forEach(button => {
-        button.classList.toggle('active', button.dataset.theme === theme);
+function applyTheme(theme, persist = true) {
+    const nextTheme = theme === 'light' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = nextTheme;
+    if (document.body) document.body.dataset.theme = nextTheme;
+    if (persist) localStorage.setItem(THEME_KEY, nextTheme);
+    syncThemeMeta(nextTheme);
+    syncThemeToggle(nextTheme);
+}
+
+function ensureThemeToggle() {
+    if (themeToggleButton) return;
+    const host = document.querySelector('.section-head');
+    if (!host) return;
+    themeToggleButton = document.createElement('button');
+    themeToggleButton.type = 'button';
+    themeToggleButton.className = 'ghost-btn theme-toggle';
+    themeToggleButton.addEventListener('click', () => {
+        const current = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
+        applyTheme(current === 'dark' ? 'light' : 'dark');
     });
+    host.appendChild(themeToggleButton);
+}
+
+function setTheme() {
+    ensureThemeToggle();
+    const savedTheme = localStorage.getItem(THEME_KEY);
+    applyTheme(savedTheme === 'light' || savedTheme === 'dark' ? savedTheme : 'dark', false);
 }
 
 /* إعادة الرسم إذا تغيّر اليوم أو الشهر */
@@ -1078,8 +1116,7 @@ resetBtn.addEventListener('click', () => {
 });
 
 /* تشغيل الواجهة بعد تحميلها أول مرة */
-const savedTheme = localStorage.getItem('siteTheme') || 'default';
-setTheme(savedTheme);
+setTheme();
 updateMotivation();
 applyFilter('all');
 renderAll(false);
@@ -1095,16 +1132,20 @@ refreshQuickNextButton();
 
 /* دوال خاصة بالتنقل إلى مكان المهمة داخل الأقسام القابلة للطي */
 function openTaskLocation(taskId) {
-    const taskEl = document.querySelector(`.subtask-card[data-id="${taskId}"]`);
+    const taskEl = document.querySelector(`.subtask-card[data-id="${taskId}"], .special-task-card[data-id="${taskId}"]`);
     if (!taskEl) return null;
 
     const dayEl = taskEl.closest('.day-accordion');
     const weekEl = taskEl.closest('.week-section');
+    const phaseEl = taskEl.closest('.phase-accordion');
+    const monthEl = taskEl.closest('.special-month-section');
 
     if (weekEl) weekEl.open = true;
     if (dayEl) dayEl.open = true;
+    if (monthEl) monthEl.open = true;
+    if (phaseEl) phaseEl.open = true;
 
-    return dayEl || taskEl;
+    return dayEl || phaseEl || taskEl;
 }
 
 /* بطاقة فرعية بعد تقسيم المهمة إلى أجزاء */
@@ -1123,7 +1164,7 @@ function buildSubTaskCard(item) {
         </label>
         <div class="subtask-main">
             <div class="subtask-head">
-                <span class="tag tag-${item.type}">${escapeHTML(getTagLabel(item.type))}</span>
+                <div class="subtask-tags">${renderTagChips(item)}</div>
                 ${item.partLabel ? `<span class="part-pill">${escapeHTML(item.partLabel)}</span>` : ''}
             </div>
             <div class="subtask-text">${escapeHTML(item.t)}</div>
@@ -1173,10 +1214,10 @@ function buildDayAccordion(dayGroup, todayKey) {
     const visibleTasks = getFilteredTasks(dayGroup.tasks);
     if (visibleTasks.length === 0) return null;
 
-    const doneCount = dayGroup.tasks.filter(task => isTaskDone(task.id)).length;
+    const doneCount = dayGroup.tasks.filter(task => isTaskDone(getTaskId(task))).length;
     const totalCount = dayGroup.tasks.length;
     const isDayCurrent = dayGroup.tasks.some(task => task.dateKey === todayKey);
-    const isDayDone = totalCount > 0 && dayGroup.tasks.every(task => isTaskDone(task.id));
+    const isDayDone = totalCount > 0 && dayGroup.tasks.every(task => isTaskDone(getTaskId(task)));
 
     const day = document.createElement('details');
     day.className = `day-accordion ${isDayDone ? 'done' : ''} ${isDayCurrent ? 'current-day' : ''}`.trim();
@@ -1215,9 +1256,9 @@ function buildWeekAccordion(week, weekIndex, orderedWeekTasks, todayKey) {
     const dayGroups = groupTasksByDay(getFilteredTasks(orderedWeekTasks));
     if (dayGroups.length === 0) return null;
 
-    const weekDoneCount = orderedWeekTasks.filter(task => isTaskDone(task.id)).length;
+    const weekDoneCount = orderedWeekTasks.filter(task => isTaskDone(getTaskId(task))).length;
     const isWeekCurrent = orderedWeekTasks.some(task => task.dateKey === todayKey);
-    const isWeekDone = orderedWeekTasks.length > 0 && orderedWeekTasks.every(task => isTaskDone(task.id));
+    const isWeekDone = orderedWeekTasks.length > 0 && orderedWeekTasks.every(task => isTaskDone(getTaskId(task)));
 
     const section = document.createElement('details');
     section.className = `week-section ${isWeekDone ? 'done' : ''} ${isWeekCurrent ? 'current' : ''}`.trim();
@@ -1259,7 +1300,7 @@ function buildWeekAccordion(week, weekIndex, orderedWeekTasks, todayKey) {
 
 /* زر سريع للوصول إلى أقرب مهمة غير منجزة */
 function refreshQuickNextButton() {
-    const hasPending = fullPlan.some(task => !isTaskDone(task.id));
+    const hasPending = fullPlan.some(task => !isTaskDone(getTaskId(task)));
     if (!hasPending) {
         if (quickNextButton) {
             quickNextButton.remove();
@@ -1272,8 +1313,7 @@ function refreshQuickNextButton() {
         quickNextButton = document.createElement('button');
         quickNextButton.type = 'button';
         quickNextButton.textContent = 'المهمة الحالية';
-        quickNextButton.className = 'ghost-btn';
-        quickNextButton.style.cssText = 'position:fixed;bottom:20px;left:20px;z-index:1500;padding:12px 16px;border-radius:14px;background:linear-gradient(90deg,var(--accent),var(--success));color:#000;font-weight:900;cursor:pointer;box-shadow:0 10px 24px rgba(0,0,0,.3);';
+        quickNextButton.className = 'ghost-btn quick-next-btn';
         document.body.appendChild(quickNextButton);
     }
 
@@ -1293,21 +1333,11 @@ function refreshQuickNextButton() {
             if (fallback) fallback.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }, 0);
     };
-}
-function renderTasks() {
-    listContainer.innerHTML = '';
-    const todayKey = toDateKey(new Date());
-    const allOrdered = orderedTasks();
-
-    studyWeeks.forEach((week, weekIndex) => {
-        const orderedWeekTasks = allOrdered.filter(task => task.weekIndex === weekIndex);
-        const section = buildWeekAccordion(week, weekIndex, orderedWeekTasks, todayKey);
-        if (!section) return;
-        listContainer.appendChild(section);
-    });
-}
-function playSuccessAnimation() {
+}function playSuccessAnimation() {
     const el = document.getElementById('successAnim');
+    if (navigator.vibrate) {
+        navigator.vibrate([20, 30, 20]);
+    }
     if (!el) return;
 
     el.classList.remove('show');
@@ -1315,12 +1345,8 @@ function playSuccessAnimation() {
     el.classList.add('show');
     el.setAttribute('aria-hidden', 'false');
 
-    if (navigator.vibrate) {
-        navigator.vibrate([30, 40, 30]);
-    }
-
     setTimeout(() => {
         el.classList.remove('show');
         el.setAttribute('aria-hidden', 'true');
-    }, 1350);
+    }, 900);
 }

@@ -4,9 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>جدولي</title>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=1.1">
-    <meta name="theme-color" content="#00f2fe">
+        <link rel="stylesheet" href="style.css?v=2.3-lite">
+    <meta name="theme-color" content="#1c1612">
 </head>
 <body>
 
@@ -51,24 +50,11 @@
         <h3> دا التقويم الشهري 🕷️ =</h3>
         <div class="calendar-days" id="calendarDays"></div>
     </div>
-
-    <div class="theme-switcher">
+<div class="tasks-toolbar">
         <div class="section-head">
-            <h3>قولت احط ثيمات جديده 😀</h3>
+            <h3>فلتر</h3>
             <button class="ghost-btn" id="resetBtn" type="button">اعاده ضبط</button>
         </div>
-        <div class="theme-buttons">
-            <button type="button" data-theme="default" onclick="setTheme('default')">اساسي</button>
-            <button type="button" data-theme="blue" onclick="setTheme('blue')">ازرق</button>
-            <button type="button" data-theme="gold" onclick="setTheme('gold')">ذهبي</button>
-            <button type="button" data-theme="red" onclick="setTheme('red')">احمر</button>
-            <button type="button" data-theme="violet" onclick="setTheme('violet')">بنفسجي</button>
-            <!-- <button type="button" data-theme="forest" onclick="setTheme('forest')">Forest</button> -->
-        </div>
-    </div>
-
-    <div class="tasks-toolbar">
-        <h3> فلتر </h3>
         <div class="filter-buttons" id="filterButtons">
             <button type="button" data-filter="all" class="active">الكل</button>
             <button type="button" data-filter="done">الخلصان</button>
@@ -77,6 +63,8 @@
     </div>
 
     <div class="tasks-grid" id="taskList"></div>
+
+    <div class="special-schedule-wrap" id="specialScheduleWrap"></div>
 
     <div class="countdown-wrap">
         <h2 class="countdown-title">الباقي ع الحرب </h2>
@@ -101,9 +89,10 @@
 </div>
 
 
+<div id="successAnim" class="success-toast" aria-hidden="true">تم</div>
 <!-- تحميل بيانات الخطة أولًا ثم منطق الصفحة -->
 <script src="data.js"></script>
-<script src="script.js?v=1.6"></script>
+<script src="script.js?v=2.3-lite"></script>
     
 </body>
 </html>
