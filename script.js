@@ -134,8 +134,6 @@ const resetBtn = document.getElementById('resetBtn');
 const specialScheduleWrap = document.getElementById('specialScheduleWrap');
 let specialProgressFill = null;
 let specialProgressText = null;
-const THEME_KEY = 'studyPlanThemeV1';
-let themeToggleButton = null;
 
 /* الحالة المحفوظة في المتصفح: ترتيب المهام وما تم إنجازه */
 const state = loadState();
@@ -1015,47 +1013,27 @@ function updateMotivation() {
 }
 
 /* تبديل الثيمات عبر متغيرات CSS */
-function syncThemeMeta(theme) {
-    const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', theme === 'dark' ? '#1c1612' : '#eadbc8');
-}
-
-function syncThemeToggle(theme) {
-    if (!themeToggleButton) return;
-    const isDark = theme === 'dark';
-    themeToggleButton.textContent = isDark ? '☀' : '☾';
-    themeToggleButton.title = isDark ? 'الوضع الفاتح' : 'الوضع الداكن';
-    themeToggleButton.setAttribute('aria-label', isDark ? 'تفعيل الوضع الفاتح' : 'تفعيل الوضع الداكن');
-    themeToggleButton.classList.toggle('is-dark', isDark);
-}
-
-function applyTheme(theme, persist = true) {
-    const nextTheme = theme === 'light' ? 'light' : 'dark';
-    document.documentElement.dataset.theme = nextTheme;
-    if (document.body) document.body.dataset.theme = nextTheme;
-    if (persist) localStorage.setItem(THEME_KEY, nextTheme);
-    syncThemeMeta(nextTheme);
-    syncThemeToggle(nextTheme);
-}
-
-function ensureThemeToggle() {
-    if (themeToggleButton) return;
-    const host = document.querySelector('.section-head');
-    if (!host) return;
-    themeToggleButton = document.createElement('button');
-    themeToggleButton.type = 'button';
-    themeToggleButton.className = 'ghost-btn theme-toggle';
-    themeToggleButton.addEventListener('click', () => {
-        const current = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
-        applyTheme(current === 'dark' ? 'light' : 'dark');
-    });
-    host.appendChild(themeToggleButton);
-}
 
 function setTheme() {
-    ensureThemeToggle();
-    const savedTheme = localStorage.getItem(THEME_KEY);
-    applyTheme(savedTheme === 'light' || savedTheme === 'dark' ? savedTheme : 'dark', false);
+    const root = document.documentElement;
+    const values = {
+        '--bg': '#f4efe8',
+        '--bg-gradient': '#fffaf5',
+        '--card-bg': '#ffffff',
+        '--glass': 'rgba(255, 255, 255, 0.72)',
+        '--text-main': '#1f2937',
+        '--text-dim': '#64748b',
+        '--accent': '#7c3aed',
+        '--success': '#10b981',
+        '--chem-color': '#c2410c',
+        '--phys-color': '#ca8a04',
+        '--bio-color': '#0f766e',
+        '--rev-color': '#6d28d9',
+        '--sol-color': '#ef4444',
+        '--line': '#e5ddd3',
+    };
+
+    Object.entries(values).forEach(([key, value]) => root.style.setProperty(key, value));
 }
 
 /* إعادة الرسم إذا تغيّر اليوم أو الشهر */
@@ -1313,7 +1291,8 @@ function refreshQuickNextButton() {
         quickNextButton = document.createElement('button');
         quickNextButton.type = 'button';
         quickNextButton.textContent = 'المهمة الحالية';
-        quickNextButton.className = 'ghost-btn quick-next-btn';
+        quickNextButton.className = 'ghost-btn';
+        quickNextButton.style.cssText = 'position:fixed;bottom:20px;left:20px;z-index:1500;padding:11px 15px;border-radius:14px;background:rgba(252,248,243,0.94);color:var(--text-main);font-weight:900;cursor:pointer;box-shadow:0 8px 18px rgba(68,49,34,.07);border:1px solid rgba(159,115,80,.16);';
         document.body.appendChild(quickNextButton);
     }
 

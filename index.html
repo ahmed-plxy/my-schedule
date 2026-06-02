@@ -3,15 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>جدولي</title>
-        <link rel="stylesheet" href="style.css?v=2.3-lite">
-    <meta name="theme-color" content="#1c1612">
+    <title>جدولي • واجهة محسنة</title>
+        <link rel="stylesheet" href="style.css?v=3.0">
+    <meta name="theme-color" content="#f4efe8">
 </head>
 <body>
 
     <!-- العنوان الرئيسي للمشروع -->
 <div class="main-title">
-    <h1><span class="title-text">الدولي اللي مش عايز يستر</span> <span>💀</span></h1>
+    <div class="hero-kicker">لوحة متابعة يومية</div>
+    <h1><span class="title-text">الدولي اللي مش عايز يستر</span> <span class="title-emoji">💀</span></h1>
+    <p class="hero-subtitle">شكل أهدى، قراءة أوضح، وتجربة أقرب لواجهة تطبيق حديثة.</p>
 </div>
 
 <!-- رسالة تحفيزية تتغير كل مرة -->
@@ -30,24 +32,24 @@
 <!-- الحاوية الأساسية التي تجمع كل البطاقات والأقسام -->
 <div class="container">
     <div class="dashboard-grid">
-        <div class="stat-card"><span id="streakCount">0</span><small> دا لو انت ملتزم</small></div>
-        <div class="stat-card"><span id="completedCount">0</span><small>المهام الخلصانه</small></div>
-        <div class="stat-card"><span id="levelCount">1</span><small> مستواك </small></div>
-        <div class="stat-card"><span id="subjectCount">-</span><small> اكتر حاجه اتعملت </small></div>
+        <div class="stat-card"><span id="streakCount">0</span><small>أيام الالتزام 😒</small></div>
+        <div class="stat-card"><span id="completedCount">0</span><small>المهام الي خلصت 👌</small></div>
+        <div class="stat-card"><span id="levelCount">1</span><small> مستواك 👀</small></div>
+        <div class="stat-card"><span id="subjectCount">-</span><small>اكتر حاجه اتعملت ✌</small></div>
     </div>
 
     <div class="today-focus">
-        <h3> المهة الحاليه عشان نوفر وقت </h3>
+        <h3> المهة الجاية </h3>
         <div id="todayTask">بيحدد لسه...</div>
     </div>
 
     <div class="achievements">
-        <h3>دي  الالقاب </h3>
+        <h3>دي بقا الالقاب 🔰</h3>
         <div id="achievementsList"></div>
     </div>
 
     <div class="calendar-wrap">
-        <h3> دا التقويم الشهري غالبا هيتشال =</h3>
+        <h3> دا التقويم الشهري 🕷️ =</h3>
         <div class="calendar-days" id="calendarDays"></div>
     </div>
 <div class="tasks-toolbar">
@@ -69,7 +71,7 @@
     <div class="countdown-wrap">
         <h2 class="countdown-title">الباقي ع الحرب </h2>
         <div id="countdownGrid"></div>
-        <div class="hint-box">برضو لو حددت مهمه مش هتتشال تاني لازم تعمل مسح بيانات للموقع + اظن مش محتاج اكتب  الحقوق محفوظه </div>
+        <div class="hint-box">برضو لو حددت مهمه مش هتتشال تاني لازم تعمل مسح بيانات للموقع + اظن مش محتاج اكتب  الحقوق محفوظه 😶</div>
     </div>
 </div>
 
@@ -92,7 +94,7 @@
 <div id="successAnim" class="success-toast" aria-hidden="true">تم</div>
 <!-- تحميل بيانات الخطة أولًا ثم منطق الصفحة -->
 <script src="data.js"></script>
-<script src="script.js?v=2.3-lite"></script>
+<script src="script.js?v=3.0"></script>
     
 </body>
 </html>
