@@ -6,7 +6,6 @@ const BASE_DATE = new Date(2026, 3, 21); // 21/4/2026
 const STORAGE_KEY = 'studyPlanStateV6';
 const LEGACY_KEY = 'fullPlanProgress';
 
-
 /* تحويل بيانات الأسابيع إلى قائمة واحدة مرتبة مع ربط كل مهمة بتاريخها الأساسي */
 const basePlan = studyWeeks.flatMap((week, weekIndex) =>
     week.tasks.map((item, idx) => {
@@ -200,7 +199,6 @@ function escapeHTML(value) {
         .replaceAll("'", '&#39;');
 }
 
-
 /* قراءة الحالة من localStorage مع دعم النسخ القديمة */
 function loadState() {
     const defaultState = { order: fullPlan.map(item => item.id), done: {} };
@@ -354,11 +352,8 @@ function moveTask(taskId, direction) {
     renderAll(true);
 }
 
-
-}
-
 /* تسجيل إنجاز المهمة في الحالة المحفوظة */
- function setDone(taskId) {
+function setDone(taskId) {
     if (isTaskDone(taskId)) return false;
 
     const currentOpenWeek = document.querySelector('.week-section[open]');
@@ -625,7 +620,6 @@ function buildTaskCard(item, index, arr, isCurrentWeek) {
 
     return card;
 }
-
 
 /* رسم قائمة المهام حسب ترتيبها الحالي */
 function renderTasks() {
@@ -924,8 +918,6 @@ setInterval(updateDateSensitiveUI, 60000);
 window.addEventListener('focus', updateDateSensitiveUI);
 
 refreshQuickNextButton();
-
-
 
 /* دوال خاصة بالتنقل إلى مكان المهمة داخل الأقسام القابلة للطي */
 function openTaskLocation(taskId) {
