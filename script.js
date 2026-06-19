@@ -120,10 +120,6 @@ const listContainer = document.getElementById('taskList');
 const countdownGrid = document.getElementById('countdownGrid');
 const fill = document.getElementById('bar-fill');
 const percentText = document.getElementById('percent-val');
-const confirmOverlay = document.getElementById('confirmOverlay');
-const confirmTaskText = document.getElementById('confirmTaskText');
-const confirmOk = document.getElementById('confirmOk');
-const confirmCancel = document.getElementById('confirmCancel');
 const stickyHeader = document.querySelector('.sticky-header');
 const progressSection = document.querySelector('.progress-section');
 const progressBarBg = document.querySelector('.bar-bg');
@@ -138,19 +134,10 @@ let specialProgressText = null;
 /* الحالة المحفوظة في المتصفح: ترتيب المهام وما تم إنجازه */
 const state = loadState();
 let draggedId = null;
-let pendingTaskId = null;
-let pendingCheckbox = null;
 let currentFilter = 'all';
 let lastDateKey = toDateKey(new Date());
 let lastMonthKey = getMonthKey(new Date());
 let quickNextButton = null;
-let confirmAnimationLock = false;
-let confirmMotionFrame = null;
-let confirmFxLayer = null;
-let confirmTrailEl = null;
-let confirmCoreEl = null;
-let confirmHaloEl = null;
-let confirmSparkEls = [];
 
 /* رسائل تحفيزية تظهر أعلى الصفحة */
 const motivationQuotes = [
@@ -367,160 +354,7 @@ function moveTask(taskId, direction) {
     renderAll(true);
 }
 
-/* =========================
-   حركة التأكيد الاحترافية
-   ========================= */
-function createConfirmFxLayer() {
-    if (confirmFxLayer) return confirmFxLayer;
-    const layer = document.createElement('div');
-    layer.className = 'confirm-fx-layer';
-    layer.setAttribute('aria-hidden', 'true');
 
-    const trail = document.createElement('div');
-    trail.className = 'transfer-trail';
-
-    const halo = document.createElement('div');
-    halo.className = 'transfer-halo';
-
-    const core = document.createElement('div');
-    core.className = 'transfer-core';
-
-    layer.append(trail, halo, core);
-    document.body.appendChild(layer);
-
-    confirmFxLayer = layer;
-    confirmTrailEl = trail;
-    confirmHaloEl = halo;
-    confirmCoreEl = core;
-    confirmSparkEls = [];
-    return layer;
-}
-
-function createTransferSparkles(count, startX, startY, endX, endY) {
-    if (!confirmFxLayer) return;
-    confirmSparkEls.forEach(el => el.remove());
-    confirmSparkEls = [];
-
-    const spread = Math.max(28, Math.min(72, Math.hypot(endX - startX, endY - startY) * 0.08));
-    for (let i = 0; i < count; i += 1) {
-        const spark = document.createElement('span');
-        spark.className = 'transfer-spark';
-        const progress = 0.16 + Math.random() * 0.64;
-        const jitterX = (Math.random() - 0.5) * spread * 2;
-        const jitterY = (Math.random() - 0.5) * spread * 1.3;
-        const size = 4 + Math.random() * 5;
-        spark.style.width = `${size}px`;
-        spark.style.height = `${size}px`;
-        spark.style.left = `${startX}px`;
-        spark.style.top = `${startY}px`;
-        spark.style.setProperty('--spark-dx', `${(endX - startX) * progress + jitterX}px`);
-        spark.style.setProperty('--spark-dy', `${(endY - startY) * progress + jitterY}px`);
-        spark.style.setProperty('--spark-delay', `${Math.round(Math.random() * 180)}ms`);
-        spark.style.setProperty('--spark-duration', `${900 + Math.round(Math.random() * 700)}ms`);
-        spark.style.setProperty('--spark-scale', `${0.7 + Math.random() * 1.5}`);
-        confirmFxLayer.appendChild(spark);
-        confirmSparkEls.push(spark);
-    }
-}
-
-function resetConfirmMotionState({ keepFocus = false } = {}) {
-    if (confirmMotionFrame) {
-        cancelAnimationFrame(confirmMotionFrame);
-        confirmMotionFrame = null;
-    }
-    confirmSparkEls.forEach(el => el.remove());
-    confirmSparkEls = [];
-    if (confirmFxLayer) {
-        confirmFxLayer.remove();
-        confirmFxLayer = null;
-        confirmTrailEl = null;
-        confirmCoreEl = null;
-        confirmHaloEl = null;
-    }
-    confirmOverlay.classList.remove('launching');
-    const modal = confirmOverlay.querySelector('.confirm-modal');
-    modal?.classList.remove('launching');
-    if (!keepFocus) stickyHeader?.classList.remove('confirm-focus');
-    progressBarBg?.classList.remove('impact');
-    fill?.classList.remove('impact-fill');
-    confirmOk?.classList.remove('confirm-ok-burst');
-}
-
-function launchConfirmCompletion(taskId, checkboxEl) {
-    if (confirmAnimationLock) return;
-    confirmAnimationLock = true;
-
-    const modal = confirmOverlay.querySelector('.confirm-modal');
-    const barTarget = progressBarBg || fill?.parentElement;
-
-    if (checkboxEl) checkboxEl.checked = true;
-
-    if (!modal || !barTarget) {
-        closeConfirm(false, true);
-        try {
-            setDone(taskId);
-        } finally {
-            confirmAnimationLock = false;
-        }
-        return;
-    }
-
-    confirmOverlay.classList.add('launching');
-    modal.classList.add('launching');
-
-    let closed = false;
-    const finish = () => {
-        if (closed) return;
-        closed = true;
-        resetConfirmMotionState();
-        confirmAnimationLock = false;
-    };
-
-    requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-            setTimeout(() => {
-                try {
-                    setDone(taskId);
-                } catch (err) {
-                    console.error('Error while confirming task:', err);
-                    if (checkboxEl) checkboxEl.checked = false;
-                }
-            }, 90);
-
-            setTimeout(() => {
-                closeConfirm(false, true);
-            }, 180);
-
-            setTimeout(finish, 320);
-        });
-    });
-}
-
-/* فتح نافذة التأكيد قبل اعتبار المهمة منجزة */
-
-function openConfirm(taskId, checkboxEl) {
-    if (isTaskDone(taskId)) {
-        if (checkboxEl) checkboxEl.checked = true;
-        return;
-    }
-
-    const task = fullPlan.find(t => t.id === taskId);
-    pendingTaskId = taskId;
-    pendingCheckbox = checkboxEl || null;
-    confirmTaskText.textContent = formatTaskText(task);
-    confirmOverlay.classList.add('show');
-    confirmOverlay.setAttribute('aria-hidden', 'false');
-    document.body.classList.add('modal-open');
-}
-
-function closeConfirm(resetCheckbox = false, force = false) {
-    if (confirmAnimationLock && !force) return;
-    if (resetCheckbox && pendingCheckbox) pendingCheckbox.checked = false;
-    pendingTaskId = null;
-    pendingCheckbox = null;
-    confirmOverlay.classList.remove('show');
-    confirmOverlay.setAttribute('aria-hidden', 'true');
-    document.body.classList.remove('modal-open');
 }
 
 /* تسجيل إنجاز المهمة في الحالة المحفوظة */
@@ -760,13 +594,13 @@ function buildTaskCard(item, index, arr, isCurrentWeek) {
     const btnDown = card.querySelector('.move-btn.down');
 
     checkbox.addEventListener('click', e => e.stopPropagation());
-    checkbox.addEventListener('change', () => { if (!isTaskDone(item.id)) openConfirm(item.id, checkbox); });
+    checkbox.addEventListener('change', () => { if (!isTaskDone(item.id)) setDone(item.id); });
     btnUp.addEventListener('click', e => { e.stopPropagation(); moveTask(item.id, -1); });
     btnDown.addEventListener('click', e => { e.stopPropagation(); moveTask(item.id, 1); });
 
     card.addEventListener('click', e => {
         if (e.target.closest('button') || e.target.closest('input')) return;
-        openConfirm(item.id, checkbox);
+        setDone(item.id);
     });
 
     card.addEventListener('dragstart', () => { draggedId = item.id; card.classList.add('dragging'); });
@@ -872,13 +706,13 @@ function buildSpecialTaskCard(task) {
     `;
 
     card.addEventListener('click', () => {
-        openConfirm(getTaskId(task), null);
+        setDone(getTaskId(task));
     });
 
     card.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
-            openConfirm(getTaskId(task), null);
+            setDone(getTaskId(task));
         }
     });
 
@@ -1063,21 +897,6 @@ function renderAll(animateProgress = false) {
     refreshQuickNextButton();
 }
 
-/* أحداث نافذة التأكيد والاختصارات */
-confirmOk.addEventListener('click', () => {
-    if (!pendingTaskId || confirmAnimationLock) return;
-
-    const taskId = pendingTaskId;
-    const checkboxEl = pendingCheckbox;
-    launchConfirmCompletion(taskId, checkboxEl);
-});
-confirmCancel.addEventListener('click', () => closeConfirm(true));
-confirmOverlay.addEventListener('click', (e) => {
-    if (e.target === confirmOverlay) closeConfirm(true);
-});
-document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && confirmOverlay.classList.contains('show')) closeConfirm(true);
-});
 
 filterButtons.addEventListener('click', (e) => {
     const button = e.target.closest('button[data-filter]');
@@ -1152,12 +971,12 @@ function buildSubTaskCard(item) {
     const checkbox = card.querySelector('input[type="checkbox"]');
     checkbox.addEventListener('click', e => e.stopPropagation());
     checkbox.addEventListener('change', () => {
-        if (!isTaskDone(item.id)) openConfirm(item.id, checkbox);
+        if (!isTaskDone(item.id)) setDone(item.id);
     });
 
     card.addEventListener('click', e => {
         if (e.target.closest('input')) return;
-        openConfirm(item.id, checkbox);
+        setDone(item.id);
     });
 
     return card;
